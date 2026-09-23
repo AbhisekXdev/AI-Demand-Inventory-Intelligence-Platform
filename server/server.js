@@ -10,9 +10,12 @@ import { connectDatabase } from "./config/database.js";
 import User from "./models/User.js";
 import Product from "./models/Product.js";
 
+
 //Routes
 import authRoutes from "./routes/auth.routes.js";
 import productRoutes from "./routes/product.routes.js";
+import Category from "./models/Category.js";
+import categoryRoutes from "./routes/category.routes.js";
 
 dotenv.config();
 
@@ -31,9 +34,10 @@ if (process.env.NODE_ENV === "development") {
     app.use(morgan("dev"));
 }
 
-// Auth Routes
+//  Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // Root
 app.get("/", (req, res) => {
@@ -66,8 +70,8 @@ const startServer = async () => {
     try {
         await connectDatabase();
 
-        await User.sync({ alter: true });
-        await Product.sync({alter: true});
+        await User.sync();
+        await Product.sync();
 
         console.log("User Table && Product Table Synchronized");
 
