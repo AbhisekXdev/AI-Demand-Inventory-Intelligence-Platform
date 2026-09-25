@@ -100,12 +100,12 @@ AI / Forecasting Service
 
 | Module | Status |
 |---|---|
-| Authentication & RBAC | 🚧 In Progress |
+| Authentication & RBAC | ✅ Completed  |
 | Product Management | ✅ Completed |
 | Category Management | 🚧 In Progress |
-| Supplier Management | ⏳ Planned |
+| Supplier Management | ✅ Completed  |
 | Warehouse Management | ⏳ Planned |
-| Inventory Management | ⏳ Planned |
+| Inventory Management | ✅ Completed  |
 | Sales & Orders | ⏳ Planned |
 | Inventory Analytics | ⏳ Planned |
 | Demand Forecasting | ⏳ Planned |
