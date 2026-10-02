@@ -5,7 +5,7 @@ import Supplier from "./Supplier.js";
 import PurchaseOrder from "./PurchaseOrder.js";
 import PurchaseOrderItem from "./PurchaseOrderItem.js";
 import StockMovement from "./StockMovement.js";
-
+import Demand from "./Demand.js";
 
 
 Category.hasMany(Product, {
@@ -67,4 +67,26 @@ Product.hasMany(StockMovement, {
 StockMovement.belongsTo(Product, {
     foreignKey: "productId",
     as: "product",
+});
+
+
+
+Product.hasMany(Demand, {
+    foreignKey: "productId",
+    as: "demands",
+});
+
+Demand.belongsTo(Product, {
+    foreignKey: "productId",
+    as: "product",
+});
+
+Supplier.hasMany(Product, {
+    foreignKey: "supplierId",
+    as: "products",
+});
+
+Product.belongsTo(Supplier, {
+    foreignKey: "supplierId",
+    as: "supplier",
 });

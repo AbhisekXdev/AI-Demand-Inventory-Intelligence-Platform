@@ -37,6 +37,16 @@ const Supplier = sequelize.define(
             allowNull: false,
             defaultValue: true,
         },
+        supplierId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+        model: "suppliers",
+        key: "id",
+    },
+    onUpdate: "CASCADE",
+    onDelete: "SET NULL",
+},
     },
     {
         tableName: "suppliers",

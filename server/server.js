@@ -16,6 +16,9 @@ import Supplier from "./models/Supplier.js";
 import PurchaseOrderItem from "./models/PurchaseOrderItem.js";
 import PurchaseOrder from "./models/PurchaseOrder.js";
 import StockMovement from "./models/StockMovement.js";
+import Demand from "./models/Demand.js";
+import reorderRoutes from "./routes/reorder.routes.js";
+
 
 
 //Routes
@@ -26,6 +29,10 @@ import inventoryRoutes from "./routes/inventory.route.js";
 import supplierRoutes from "./routes/supplier.route.js";
 import PurchaseOrderRoutes from "./routes/purchaseOrder.routes.js";
 import stockMovementRoutes from "./routes/stockMovement.routes.js";
+import demandRoutes from "./routes/demand.routes.js";
+import forecastRoutes from "./routes/forecast.routes.js";
+import inventoryAlertRoutes from "./routes/inventoryAlert.routes.js";
+import purchaseRecommendationRoutes from "./routes/purchaseRecommendation.routes.js";
 dotenv.config();
 
 const app = express();
@@ -51,6 +58,27 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchase-orders", PurchaseOrderRoutes);
 app.use("/api/stock-movements", stockMovementRoutes);
+app.use("/api/demands", demandRoutes);
+app.use(
+    "/api/forecast",
+    forecastRoutes
+);
+app.use(
+    "/api/reorder",
+    reorderRoutes
+);
+
+app.use(
+    "/api/inventory/alerts",
+    inventoryAlertRoutes
+);
+app.use(
+    "/api/purchase-recommendations",
+    purchaseRecommendationRoutes
+);
+
+
+
 // Root
 app.get("/", (req, res) => {
     res.status(200).json({
@@ -98,7 +126,8 @@ const startServer = async () => {
         console.log("Purchase Order Item Table Synchronized");
         await StockMovement.sync();
         console.log("Stock Movement Table Synchronized");
-
+        await Demand.sync();
+        console.log("Demand Table Synchronized");
 
 
         app.listen(PORT, () => {
