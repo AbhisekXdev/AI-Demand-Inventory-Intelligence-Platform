@@ -13,6 +13,9 @@ import Category from "./models/Category.js";
 import Inventory from "./models/Inventory.js";
 import "./models/associations.js";
 import Supplier from "./models/Supplier.js";
+import PurchaseOrderItem from "./models/PurchaseOrderItem.js";
+import PurchaseOrder from "./models/PurchaseOrder.js";
+import StockMovement from "./models/StockMovement.js";
 
 
 //Routes
@@ -21,7 +24,8 @@ import productRoutes from "./routes/product.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import inventoryRoutes from "./routes/inventory.route.js";
 import supplierRoutes from "./routes/supplier.route.js";
-
+import PurchaseOrderRoutes from "./routes/purchaseOrder.routes.js";
+import stockMovementRoutes from "./routes/stockMovement.routes.js";
 dotenv.config();
 
 const app = express();
@@ -45,7 +49,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/suppliers", supplierRoutes);
-
+app.use("/api/purchase-orders", PurchaseOrderRoutes);
+app.use("/api/stock-movements", stockMovementRoutes);
 // Root
 app.get("/", (req, res) => {
     res.status(200).json({
@@ -80,15 +85,21 @@ const startServer = async () => {
         await User.sync();
         console.log("User Table Synchronized");
         await Product.sync();
-         console.log("Product Table Synchronized");
+        console.log("Product Table Synchronized");
         await Category.sync();
-         console.log("Category Table Synchronized");
+        console.log("Category Table Synchronized");
         await Inventory.sync();
-         console.log("Inventory Table Synchronized");
+        console.log("Inventory Table Synchronized");
         await Supplier.sync();
-         console.log("Supplier Table Synchronized");
+        console.log("Supplier Table Synchronized");
+        await PurchaseOrder.sync();
+        console.log("Purchase Order Table Synchronized");
+        await PurchaseOrderItem.sync();
+        console.log("Purchase Order Item Table Synchronized");
+        await StockMovement.sync();
+        console.log("Stock Movement Table Synchronized");
 
-     
+
 
         app.listen(PORT, () => {
             console.log(

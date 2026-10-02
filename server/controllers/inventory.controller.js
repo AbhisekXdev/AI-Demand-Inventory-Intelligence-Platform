@@ -1,5 +1,6 @@
 import Inventory from "../models/Inventory.js";
 import Product from "../models/Product.js";
+import StockMovement from "../models/StockMovement.js";
 
 const createInventory = async(req,res)=>{
     try{
@@ -129,67 +130,110 @@ const getInventoryByProduct= async(req,res)=>{
 };
 
 //Update Inv stock 
-const updateStock = async(req,res)=>{
-    try{
-        const {productId}= req.params;
-        const {type,quantity}= req.body;
+const updateStock = async (req, res) => {
+    try {
+        const { productId } = req.params;
 
-        if(!type|| !quantity){
+        // type and quantity come from request body
+        const { type, quantity } = req.body;
+
+        // Validate required fields
+        if (!type || quantity === undefined) {
             return res.status(400).json({
                 success: false,
                 message: "Stock type and quantity are required",
             });
         }
-        if(!["STOCK_IN", "STOCK_OUT"].includes(type)){
+
+        // Validate stock type
+        if (!["STOCK_IN", "STOCK_OUT"].includes(type)) {
             return res.status(400).json({
                 success: false,
-                message: "Type must be Stock_IN or STOCK_Out",
+                message: "Type must be STOCK_IN or STOCK_OUT",
             });
         }
-        if(quantity <=0){
+
+        // Convert quantity to number
+        const stockQuantity = Number(quantity);
+
+        if (!Number.isFinite(stockQuantity) || stockQuantity <= 0) {
             return res.status(400).json({
                 success: false,
-                message: "quantity must be greater than 0",
+                message: "Quantity must be greater than 0",
             });
         }
+
+        // Find inventory
         const inventory = await Inventory.findOne({
-            where: { productId},
+            where: { productId },
         });
-        if(!inventory){
+
+        if (!inventory) {
             return res.status(404).json({
                 success: false,
                 message: "Inventory not found",
             });
         }
-        if(type === "STOCK_IN"){
-            inventory.quantity += Number(quantity);
-            inventory.lastRestockAt= new Date();
+
+        // Store stock before update
+        const previousQuantity = Number(inventory.quantity);
+
+        // STOCK IN
+        if (type === "STOCK_IN") {
+            inventory.quantity =
+                previousQuantity + stockQuantity;
+
+            inventory.lastRestockAt = new Date();
         }
-        if(type === "STOCK_OUT"){
-            if(inventory.quantity< Number(quantity)){
+
+        // STOCK OUT
+        if (type === "STOCK_OUT") {
+            if (previousQuantity < stockQuantity) {
                 return res.status(400).json({
                     success: false,
-                    message: "INsufficient stock",
-                    availableStock: inventory.quantity,
+                    message: "Insufficient stock",
+                    availableStock: previousQuantity,
                 });
             }
-            inventory.quantity-= Number(quantity);
+
+            inventory.quantity =
+                previousQuantity - stockQuantity;
         }
+
+        // Save inventory
         await inventory.save();
+
+        // Store stock after update
+        const newQuantity = Number(inventory.quantity);
+
+        // Create stock movement history
+        const movement = await StockMovement.create({
+            productId,
+            type,
+            quantity: stockQuantity,
+            referenceType: "MANUAL",
+            referenceId: null,
+            previousQuantity,
+            newQuantity,
+            notes: `Manual ${type} transaction`,
+        });
+
         return res.status(200).json({
             success: true,
             message: `${type} completed successfully`,
             inventory,
+            movement,
         });
 
-    } catch(error){
-        console.error("Updated Stock Error", error);
+    } catch (error) {
+        console.error("Update Stock Error:", error);
+
         return res.status(500).json({
             success: false,
-            message: "Internal server error",
+            message: "Internal Server Error",
         });
     }
-}
+};
 //Get Low Stock Inventory 
 const getLowStockInventory = async(req,res)=>{
     try{
@@ -225,6 +269,102 @@ const getLowStockInventory = async(req,res)=>{
     }
 };
 
+const adjustStock = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const { quantity, type, notes } = req.body;
+
+        if (quantity === undefined || !type) {
+            return res.status(400).json({
+                success: false,
+                message: "Quantity and type are required",
+            });
+        }
+
+        if (!["STOCK_IN", "STOCK_OUT"].includes(type)) {
+            return res.status(400).json({
+                success: false,
+                message: "Type must be STOCK_IN or STOCK_OUT",
+            });
+        }
+
+        const adjustmentQuantity = Number(quantity);
+
+        if (!Number.isFinite(adjustmentQuantity) || adjustmentQuantity <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Quantity must be greater than 0",
+            });
+        }
+
+        const inventory = await Inventory.findOne({
+            where: { productId },
+        });
+
+        if (!inventory) {
+            return res.status(404).json({
+                success: false,
+                message: "Inventory not found",
+            });
+        }
+
+        const previousQuantity = Number(inventory.quantity);
+
+        if (
+            type === "STOCK_OUT" &&
+            previousQuantity < adjustmentQuantity
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Insufficient stock",
+                availableStock: previousQuantity,
+            });
+        }
+
+        let newQuantity;
+
+        if (type === "STOCK_IN") {
+            newQuantity = previousQuantity + adjustmentQuantity;
+        } else {
+            newQuantity = previousQuantity - adjustmentQuantity;
+        }
+
+        inventory.quantity = newQuantity;
+
+        if (type === "STOCK_IN") {
+            inventory.lastRestockAt = new Date();
+        }
+
+        await inventory.save();
+
+        const movement = await StockMovement.create({
+            productId,
+            type,
+            quantity: adjustmentQuantity,
+            referenceType: "ADJUSTMENT",
+            referenceId: null,
+            previousQuantity,
+            newQuantity,
+            notes: notes || "Manual stock adjustment",
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Stock adjusted successfully",
+            inventory,
+            movement,
+        });
+
+    } catch (error) {
+        console.error("Stock Adjustment Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
+    }
+};
+
 export {
-    createInventory,getInventory,getInventoryByProduct,updateStock, getLowStockInventory
+    createInventory,getInventory,getInventoryByProduct,updateStock, getLowStockInventory,adjustStock
 };
