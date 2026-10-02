@@ -102,10 +102,17 @@ AI / Forecasting Service
 |---|---|
 | Authentication & RBAC | ✅ Completed  |
 | Product Management | ✅ Completed |
+<<<<<<< HEAD
 | Category Management | ✅ Completed  |
 | Supplier Management | ⏳ Planned |
 | Warehouse Management | ⏳ Planned |
 | Inventory Management | ✅ Completed |
+=======
+| Category Management | 🚧 In Progress |
+| Supplier Management | ✅ Completed  |
+| Warehouse Management | ⏳ Planned |
+| Inventory Management | ✅ Completed  |
+>>>>>>> 229d1fe8e4800bf53fb4fe3dfea6d186dbc3d134
 | Sales & Orders | ⏳ Planned |
 | Inventory Analytics | ⏳ Planned |
 | Demand Forecasting | ⏳ Planned |
