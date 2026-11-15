@@ -34,6 +34,11 @@ import forecastRoutes from "./routes/forecast.routes.js";
 import inventoryAlertRoutes from "./routes/inventoryAlert.routes.js";
 import purchaseRecommendationRoutes from "./routes/purchaseRecommendation.routes.js";
 dotenv.config();
+import replenishmentRoutes from "./routes/replenishment.routes.js";
+import analyticsRoutes from "./routes/analytics.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
+import intelligenceRoutes from "./routes/intelligence.routes.js";
+import reportsRoutes from "./routes/reports.routes.js";
 
 const app = express();
 
@@ -76,6 +81,11 @@ app.use(
     "/api/purchase-recommendations",
     purchaseRecommendationRoutes
 );
+app.use("/api/replenishment", replenishmentRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/intelligence", intelligenceRoutes);
+app.use("/api/reports", reportsRoutes);
 
 
 

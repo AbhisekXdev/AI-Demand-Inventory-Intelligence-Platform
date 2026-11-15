@@ -32,7 +32,7 @@ const createSupplier = async (req, res) => {
         const supplier = await Supplier.create({
             name,email,phone,address,contactPerson,
         });
-        return req.status(201).json({
+        return res.status(201).json({
             success: true,
             message: "Supplier created Successfully",
             supplier,

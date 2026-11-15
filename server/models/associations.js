@@ -30,14 +30,14 @@ Inventory.belongsTo(Product, {
     as: "product",
 });
 
-Supplier.hasMany(PurchaseOrder,{
-    foreignKey:"supplierId",
-    as: "supplier",
+Supplier.hasMany(PurchaseOrder, {
+    foreignKey: "supplierId",
+    as: "purchaseOrders",
 });
 
-PurchaseOrder.belongsTo(Supplier,{
-    foreignKey:"supplierId",
-    as:"supplier",
+PurchaseOrder.belongsTo(Supplier, {
+    foreignKey: "supplierId",
+    as: "supplier",
 });
 
 PurchaseOrder.hasMany(PurchaseOrderItem,{

@@ -1,3 +1,4 @@
+
 import { DataTypes } from "sequelize";
 import { sequelize } from "../config/database.js";
 
@@ -37,20 +38,11 @@ const Supplier = sequelize.define(
             allowNull: false,
             defaultValue: true,
         },
-        supplierId: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-        model: "suppliers",
-        key: "id",
-    },
-    onUpdate: "CASCADE",
-    onDelete: "SET NULL",
-},
     },
     {
         tableName: "suppliers",
         timestamps: true,
     }
 );
+
 export default Supplier;

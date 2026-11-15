@@ -1,23 +1,49 @@
 import Product from "../models/Product.js";
 
+
 const createProduct = async (req, res) => {
   try {
-    const { name, sku, description, price, costPrice, reorderLevel } = req.body;
-    if (!name || !sku || price === undefined || costPrice === undefined) {
+    const {
+      name,
+      sku,
+      description,
+      price,
+      costPrice,
+      reorderLevel,
+      leadTimeDays,
+      supplierId,
+      categoryId,
+      isActive,
+    } = req.body;
+
+    if (
+      !name ||
+      !sku ||
+      price === undefined ||
+      costPrice === undefined ||
+      categoryId === undefined ||
+      categoryId === null ||
+      categoryId === ""
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Name, SKu price and cost price are required",
+        message: "Name, SKU, price, cost price and category are required",
       });
     }
+
+    // Check whether SKU already exists
     const existingProduct = await Product.findOne({
       where: { sku },
     });
+
     if (existingProduct) {
       return res.status(409).json({
         success: false,
-        message: "Product already with SKU exists",
+        message: "Product already exists with this SKU",
       });
     }
+
+    // Create product
     const product = await Product.create({
       name,
       sku,
@@ -25,21 +51,28 @@ const createProduct = async (req, res) => {
       price,
       costPrice,
       reorderLevel,
+      leadTimeDays,
+      supplierId,
+      categoryId,
+      isActive: isActive ?? true,
     });
+
     return res.status(201).json({
       success: true,
       message: "Product created successfully",
       product,
     });
+
   } catch (error) {
-    console.error("Product Creation Error", error);
+    console.error("Product Creation Error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Internal Server Error",
+      message: error.message || "Internal Server Error",
     });
   }
 };
+
 
 //Get All product 
 const getAllProducts = async (req, res) => {

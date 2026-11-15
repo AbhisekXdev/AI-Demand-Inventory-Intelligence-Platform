@@ -1,8 +1,8 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../config/database.js";
 
-const PurchaseOrder  = sequelize.define(
-    "PurchaseOrder" ,
+const PurchaseOrder = sequelize.define(
+    "PurchaseOrder",
     {
         id: {
             type: DataTypes.INTEGER,
@@ -28,6 +28,10 @@ const PurchaseOrder  = sequelize.define(
             type: DataTypes.DATE,
             allowNull: true,
         },
+        supplierId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        },
         status: {
             type: DataTypes.ENUM(
                 "DRAFT",
@@ -40,7 +44,7 @@ const PurchaseOrder  = sequelize.define(
             defaultValue: "DRAFT",
         },
         totalAmount: {
-            type: DataTypes.DECIMAL(12,2),
+            type: DataTypes.DECIMAL(12, 2),
             allowNull: false,
             defaultValue: 0,
         },

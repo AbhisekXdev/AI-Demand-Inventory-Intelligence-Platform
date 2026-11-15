@@ -5,6 +5,7 @@ import Product from "../models/Product.js";
 import { sequelize } from "../config/database.js";
 import Inventory from "../models/Inventory.js";
 import StockMovement from "../models/StockMovement.js";
+import Demand from "../models/Demand.js";
 
 // Create Purchase Order
 const createPurchaseOrder = async (req, res) => {
@@ -165,8 +166,8 @@ const createPurchaseOrder = async (req, res) => {
     }
 };
 //get all purchase order
-const getPurchaseOrders = async(req,res)=>{
-    try{
+const getPurchaseOrders = async (req, res) => {
+    try {
         const purchaseOrders = await PurchaseOrder.findAll({
             order: [["createdAt", "DESC"]],
         });
@@ -183,7 +184,7 @@ const getPurchaseOrders = async(req,res)=>{
             success: false,
             message: "Internal Server Error",
         });
-}
+    }
 };
 
 
@@ -354,36 +355,36 @@ const receivePurchaseOrder = async (req, res) => {
                 });
             }
 
-            // Increase inventory
+         
             // Store stock before update
-const previousQuantity = Number(inventory.quantity);
+            const previousQuantity = Number(inventory.quantity);
 
-// Increase inventory
-inventory.quantity =
-    previousQuantity + Number(quantity);
+            // Increase inventory
+            inventory.quantity =
+                previousQuantity + Number(quantity);
 
-inventory.lastRestockAt = new Date();
+            inventory.lastRestockAt = new Date();
 
-await inventory.save({ transaction });
+            await inventory.save({ transaction });
 
-// Create stock movement history
-await StockMovement.create(
-    {
-        productId,
-        type: "STOCK_IN",
-        quantity: Number(quantity),
+            // Create stock movement history
+            await StockMovement.create(
+                {
+                    productId,
+                    type: "STOCK_IN",
+                    quantity: Number(quantity),
 
-        // This movement came from a Purchase Order
-        referenceType: "PURCHASE_ORDER",
-        referenceId: purchaseOrder.id,
+                    // This movement came from a Purchase Order
+                    referenceType: "PURCHASE_ORDER",
+                    referenceId: purchaseOrder.id,
 
-        previousQuantity,
-        newQuantity: Number(inventory.quantity),
+                    previousQuantity,
+                    newQuantity: Number(inventory.quantity),
 
-        notes: `Stock received from Purchase Order ${purchaseOrder.poNumber}`,
-    },
-    { transaction }
-);
+                    notes: `Stock received from Purchase Order ${purchaseOrder.poNumber}`,
+                },
+                { transaction }
+            );
         }
 
         // Check whether everything has been received
@@ -491,6 +492,221 @@ const cancelPurchaseOrder = async (req, res) => {
 
 
 
+// AUTOMATIC PURCHASE ORDER CREATION
+
+
+const autoCreatePurchaseOrder = async (req, res) => {
+    const transaction = await sequelize.transaction();
+
+    try {
+        const { productId } = req.params;
+
+        // 1. Find product
+        const product = await Product.findByPk(productId, {
+            transaction,
+        });
+
+        if (!product) {
+            await transaction.rollback();
+            return res.status(404).json({
+                success: false,
+                message: "Product not found",
+            });
+        }
+
+        // 2. Validate supplier
+        if (!product.supplierId) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "No supplier assigned to this product",
+            });
+        }
+
+        const supplier = await Supplier.findByPk(
+            product.supplierId,
+            { transaction }
+        );
+
+        if (!supplier) {
+            await transaction.rollback();
+            return res.status(404).json({
+                success: false,
+                message: "Assigned supplier not found",
+            });
+        }
+
+        // 3. Get inventory
+        const inventory = await Inventory.findOne({
+            where: { productId },
+            transaction,
+        });
+
+        if (!inventory) {
+            await transaction.rollback();
+            return res.status(404).json({
+                success: false,
+                message: "Inventory not found",
+            });
+        }
+
+        // 4. Get demand history
+        const demands = await Demand.findAll({
+            where: { productId },
+            order: [["demandDate", "ASC"]],
+            transaction,
+        });
+
+        if (demands.length === 0) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Demand history is required",
+            });
+        }
+
+        // 5. Calculate average daily demand
+        const dailyDemandMap = {};
+
+        demands.forEach((demand) => {
+            const date = new Date(demand.demandDate)
+                .toISOString()
+                .split("T")[0];
+
+            dailyDemandMap[date] =
+                (dailyDemandMap[date] || 0) +
+                Number(demand.quantity);
+        });
+
+        const dailyValues = Object.values(dailyDemandMap);
+
+        const averageDailyDemand =
+            dailyValues.reduce((sum, value) => sum + value, 0) /
+            dailyValues.length;
+
+        // 6. Calculate reorder quantity
+        const currentStock = Number(inventory.quantity) || 0;
+        const leadTimeDays = Number(product.leadTimeDays) || 7;
+        const reorderLevel = Number(product.reorderLevel) || 10;
+
+        const leadTimeDemand =
+            averageDailyDemand * leadTimeDays;
+
+        const reorderPoint =
+            leadTimeDemand + reorderLevel;
+
+        const recommendedQuantity = Math.max(
+            0,
+            Math.ceil(reorderPoint - currentStock)
+        );
+
+        if (
+            currentStock > reorderPoint ||
+            recommendedQuantity <= 0
+        ) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Purchase order is not required for this product",
+                currentStock,
+                reorderPoint,
+                recommendedQuantity,
+            });
+        }
+
+        // 7. Calculate purchase amount
+        const unitPrice = Number(product.costPrice);
+
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Invalid product cost price",
+            });
+        }
+
+        const totalAmount =
+            Number((recommendedQuantity * unitPrice).toFixed(2));
+
+        // 8. Calculate expected delivery date
+        const expectedDeliveryDate = new Date();
+        expectedDeliveryDate.setDate(
+            expectedDeliveryDate.getDate() + leadTimeDays
+        );
+
+        // 9. Generate PO number
+        const poNumber = `PO-${Date.now()}`;
+
+        // 10. Create draft purchase order
+        const purchaseOrder = await PurchaseOrder.create(
+            {
+                poNumber,
+                supplierId: product.supplierId,
+                orderDate: new Date(),
+                expectedDeliveryDate,
+                status: "DRAFT",
+                totalAmount,
+                notes: `Automatically generated from demand-based purchase recommendation for ${product.name}`,
+            },
+            { transaction }
+        );
+
+        // 11. Create purchase order item
+        await PurchaseOrderItem.create(
+            {
+                purchaseOrderId: purchaseOrder.id,
+                productId: product.id,
+                quantity: recommendedQuantity,
+                receivedQuantity: 0,
+                unitPrice,
+                totalPrice: totalAmount,
+            },
+            { transaction }
+        );
+
+        // 12. Commit transaction
+        await transaction.commit();
+
+        return res.status(201).json({
+            success: true,
+            message: "Automated draft purchase order created successfully",
+            purchaseOrder: {
+                id: purchaseOrder.id,
+                poNumber: purchaseOrder.poNumber,
+                supplierId: purchaseOrder.supplierId,
+                supplierName: supplier.name,
+                productId: product.id,
+                productName: product.name,
+                currentStock,
+                averageDailyDemand: Number(
+                    averageDailyDemand.toFixed(2)
+                ),
+                recommendedQuantity,
+                unitPrice,
+                totalAmount,
+                expectedDeliveryDate,
+                status: "DRAFT",
+            },
+        });
+
+    } catch (error) {
+        if (!transaction.finished) {
+            await transaction.rollback();
+        }
+
+        console.error("Auto Purchase Order Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to generate automatic purchase order",
+            error: error.message,
+        });
+    }
+};
+
+
+
+
 export {
-    createPurchaseOrder,getPurchaseOrders,getPurchaseOrderById,receivePurchaseOrder,cancelPurchaseOrder
+    createPurchaseOrder, getPurchaseOrders, getPurchaseOrderById, receivePurchaseOrder, cancelPurchaseOrder,autoCreatePurchaseOrder,
 };

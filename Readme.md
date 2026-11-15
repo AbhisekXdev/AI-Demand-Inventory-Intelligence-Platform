@@ -425,3 +425,18 @@ Node.js • Express.js • React.js • MySQL • MongoDB • Sequelize • REST
 ## 📄 License
 
 This project is developed for learning, portfolio, and demonstration purposes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
