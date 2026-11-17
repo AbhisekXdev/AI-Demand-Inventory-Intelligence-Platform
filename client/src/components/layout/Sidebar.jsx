@@ -18,6 +18,7 @@ import {
   Users,
   HelpCircle,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -30,6 +31,7 @@ const menuItems = [
   { name: "Demand", path: "/demands", icon: TrendingUp },
   { name: "Replenishment", path: "/replenishment", icon: RefreshCw },
   { name: "Employees", path: "/employees", icon: Users, adminOnly: true },
+  { name: "Audit Logs", path: "/audit-logs", icon: ShieldCheck, adminOnly: true },
 ];
 
 const intelligenceItems = [

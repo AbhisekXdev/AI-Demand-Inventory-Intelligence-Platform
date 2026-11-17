@@ -29,6 +29,7 @@ import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Help from "./pages/Help";
 import Settings from "./pages/Settings";
+import AuditLogs from "./pages/AuditLogs";
 
 function AdminRoute() {
   const { user } = useAuth();
@@ -72,7 +73,9 @@ export default function App() {
 
               {/* Admin-only pages */}
               <Route element={<AdminRoute />}>
+                
                 <Route path="employees" element={<Employees />} />
+                <Route path="audit-logs" element={<AuditLogs />} />
               </Route>
             </Route>
           </Route>
