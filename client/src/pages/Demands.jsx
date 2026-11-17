@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -14,24 +13,22 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Boxes,
+  ArrowUpRight,
+  FileText,
+  Hash,
+  Sparkles,
 } from "lucide-react";
-
 import { toast } from "react-toastify";
-
 import { getDemands, createDemand } from "../services/demandService";
 import { getProducts } from "../services/productService";
+import "./Demands.css";
 
 const PAGE_SIZE = 8;
-
 const getToday = () => {
   const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 };
-
 const initialForm = {
   productId: "",
   demandDate: getToday(),
@@ -42,113 +39,69 @@ const initialForm = {
 
 const formatDate = (date) => {
   if (!date) return "—";
-
-  const parsedDate = new Date(`${date}T00:00:00`);
-
-  if (Number.isNaN(parsedDate.getTime())) return date;
-
-  return parsedDate.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const parsed = new Date(`${date}T00:00:00`);
+  return Number.isNaN(parsed.getTime())
+    ? date
+    : parsed.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+};
+const formatNumber = (value) => Number(value || 0).toLocaleString("en-IN");
+const extractArray = (response, key) => {
+  const result =
+    response?.[key] ?? response?.data?.[key] ?? response?.data ?? response;
+  return Array.isArray(result) ? result : null;
 };
 
 export default function Demands() {
   const [demands, setDemands] = useState([]);
   const [products, setProducts] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [productsLoading, setProductsLoading] = useState(true);
-
   const [saving, setSaving] = useState(false);
-
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
-
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDemand, setSelectedDemand] = useState(null);
   const [form, setForm] = useState(initialForm);
 
-  // ==========================================
-  // Load Demands
-  // ==========================================
-
-  const loadDemands = useCallback(async (showLoader = true, showSuccess = false) => {
-    const startTime = Date.now();
-
-    try {
-      if (showLoader) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
-
-      const response = await getDemands();
-
-      const result =
-        response?.demands ??
-        response?.data?.demands ??
-        response?.data ??
-        response;
-
-      if (!Array.isArray(result)) {
-        throw new Error("Invalid demands response from server");
-      }
-
-      setDemands(result);
-
-      if (showSuccess) {
-        toast.success("Demand records refreshed successfully");
-      }
-    } catch (error) {
-      console.error("Demand API Error:", error);
-
-      toast.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Unable to load demand records"
-      );
-    } finally {
-      const remaining = Math.max(0, 700 - (Date.now() - startTime));
-
-      setTimeout(() => {
+  const loadDemands = useCallback(
+    async (showLoader = true, showSuccess = false) => {
+      if (showLoader) setLoading(true);
+      else setRefreshing(true);
+      try {
+        const result = extractArray(await getDemands(), "demands");
+        if (!result) throw new Error("Invalid demands response from server");
+        setDemands(result);
+        if (showSuccess) toast.success("Demand records refreshed successfully");
+      } catch (error) {
+        console.error("Demand API Error:", error);
+        toast.error(
+          error.response?.data?.message ||
+            error.message ||
+            "Unable to load demand records",
+        );
+      } finally {
         setLoading(false);
         setRefreshing(false);
-      }, remaining);
-    }
-  }, []);
-
-  // ==========================================
-  // Load Products
-  // ==========================================
+      }
+    },
+    [],
+  );
 
   const loadProducts = useCallback(async () => {
     try {
       setProductsLoading(true);
-
-      const response = await getProducts();
-
-      const result =
-        response?.products ??
-        response?.data?.products ??
-        response?.data ??
-        response;
-
-      if (!Array.isArray(result)) {
-        throw new Error("Invalid products response");
-      }
-
+      const result = extractArray(await getProducts(), "products");
+      if (!result) throw new Error("Invalid products response");
       setProducts(result.filter((product) => product.isActive !== false));
     } catch (error) {
       console.error("Demand Products Error:", error);
-
-      toast.error(
-        error.response?.data?.message ||
-          "Unable to load products"
-      );
+      toast.error(error.response?.data?.message || "Unable to load products");
     } finally {
       setProductsLoading(false);
     }
@@ -159,437 +112,320 @@ export default function Demands() {
     loadProducts();
   }, [loadDemands, loadProducts]);
 
-  // ==========================================
-  // Search and Filter
-  // ==========================================
-
   const filteredDemands = useMemo(() => {
     const query = search.trim().toLowerCase();
-
     return demands.filter((demand) => {
-      const productName = demand.product?.name || "";
-      const productSku = demand.product?.sku || "";
-
       const matchesSearch = [
-        productName,
-        productSku,
+        demand.product?.name,
+        demand.product?.sku,
         demand.notes,
         demand.source,
       ].some((value) =>
-        String(value ?? "").toLowerCase().includes(query)
+        String(value ?? "")
+          .toLowerCase()
+          .includes(query),
       );
-
-      const matchesSource =
-        sourceFilter === "ALL" ||
-        demand.source === sourceFilter;
-
-      return matchesSearch && matchesSource;
+      return (
+        matchesSearch &&
+        (sourceFilter === "ALL" || demand.source === sourceFilter)
+      );
     });
   }, [demands, search, sourceFilter]);
 
-  // ==========================================
-  // Pagination
-  // ==========================================
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredDemands.length / PAGE_SIZE)
-  );
-
+  const totalPages = Math.max(1, Math.ceil(filteredDemands.length / PAGE_SIZE));
   const paginatedDemands = filteredDemands.slice(
     (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    currentPage * PAGE_SIZE,
   );
-
   useEffect(() => {
     setCurrentPage(1);
   }, [search, sourceFilter]);
-
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
+    if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
 
-  // ==========================================
-  // Summary
-  // ==========================================
-
-  const summary = useMemo(() => {
-    const totalQuantity = demands.reduce(
-      (total, demand) => total + Number(demand.quantity || 0),
-      0
-    );
-
-    const manualCount = demands.filter(
-      (demand) => demand.source === "MANUAL"
-    ).length;
-
-    const uniqueProducts = new Set(
-      demands.map((demand) => demand.productId)
-    ).size;
-
-    return {
+  const summary = useMemo(
+    () => ({
       totalRecords: demands.length,
-      totalQuantity,
-      manualCount,
-      uniqueProducts,
-    };
-  }, [demands]);
-
-  // ==========================================
-  // Modal
-  // ==========================================
+      totalQuantity: demands.reduce(
+        (total, demand) => total + Number(demand.quantity || 0),
+        0,
+      ),
+      manualCount: demands.filter((demand) => demand.source === "MANUAL")
+        .length,
+      uniqueProducts: new Set(demands.map((demand) => demand.productId)).size,
+    }),
+    [demands],
+  );
 
   const openAddModal = () => {
     setSelectedDemand(null);
-    setForm({
-      ...initialForm,
-      demandDate: getToday(),
-    });
+    setForm({ ...initialForm, demandDate: getToday() });
     setModalOpen(true);
   };
-
   const closeModal = () => {
     if (saving) return;
-
     setModalOpen(false);
-    setForm(initialForm);
+    setForm({ ...initialForm, demandDate: getToday() });
   };
-
   const handleChange = (event) => {
     const { name, value } = event.target;
-
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    setForm((previous) => ({ ...previous, [name]: value }));
   };
-
-  // ==========================================
-  // Create Demand
-  // ==========================================
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    if (!form.productId) {
-      toast.error("Please select a product");
-      return;
-    }
-
-    if (!form.demandDate) {
-      toast.error("Please select a demand date");
-      return;
-    }
-
+    if (!form.productId) return toast.error("Please select a product");
+    if (!form.demandDate) return toast.error("Please select a demand date");
     const quantity = Number(form.quantity);
-
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-      toast.error("Quantity must be a positive whole number");
-      return;
-    }
-
+    if (!Number.isInteger(quantity) || quantity <= 0)
+      return toast.error("Quantity must be a positive whole number");
     try {
       setSaving(true);
-
-      const payload = {
+      await createDemand({
         productId: Number(form.productId),
         demandDate: form.demandDate,
         quantity,
         source: form.source,
         notes: form.notes.trim(),
-      };
-
-      await createDemand(payload);
-
+      });
       toast.success("Demand record created successfully");
-
       setModalOpen(false);
-      setForm(initialForm);
-
+      setForm({ ...initialForm, demandDate: getToday() });
       await loadDemands(true, false);
     } catch (error) {
       console.error("Create Demand Error:", error);
-
       toast.error(
-        error.response?.data?.message ||
-          "Unable to create demand record"
+        error.response?.data?.message || "Unable to create demand record",
       );
     } finally {
       setSaving(false);
     }
   };
 
-  // ==========================================
-  // View Demand Details
-  // ==========================================
-
-  const openDetails = (demand) => {
-    setSelectedDemand(demand);
-  };
-
-  const closeDetails = () => {
-    setSelectedDemand(null);
-  };
-
-  // ==========================================
-  // UI
-  // ==========================================
+  const selectedProduct = products.find(
+    (product) => String(product.id) === String(form.productId),
+  );
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6">
-
-      {/* Header */}
-
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-blue-100 p-3 text-blue-600">
-            <Activity size={25} />
+    <main className="demands-page">
+      <section className="demands-hero">
+        <div className="demands-hero-copy">
+          <div className="demands-eyebrow">
+            <Sparkles size={14} /> DEMAND INTELLIGENCE
           </div>
-
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-              Demand Management
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Record and monitor product demand history
-            </p>
+          <div className="flex items-start gap-3">
+            <div className="demands-hero-icon">
+              <Activity size={25} />
+            </div>
+            <div className="min-w-0">
+              <h1>Demand Management</h1>
+              <p>
+                Capture demand signals, review historical activity, and keep
+                your planning data organized.
+              </p>
+            </div>
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-2">
+        <div className="demands-actions">
           <button
+            className="demands-btn demands-btn-secondary"
             type="button"
             onClick={() => {
               loadDemands(false, true);
               loadProducts();
             }}
             disabled={loading || refreshing}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <RefreshCw
-              size={17}
-              className={refreshing ? "animate-spin" : ""}
-            />
-            {refreshing ? "Refreshing..." : "Refresh"}
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />{" "}
+            <span>{refreshing ? "Refreshing" : "Refresh data"}</span>
           </button>
-
           <button
+            className="demands-btn demands-btn-primary"
             type="button"
             onClick={openAddModal}
             disabled={productsLoading || products.length === 0}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Plus size={18} />
-            Add Demand
+            <Plus size={18} /> <span>Add demand</span>
           </button>
         </div>
-      </div>
+      </section>
 
-      {/* Summary Cards */}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="demands-stats">
         <SummaryCard
-          title="Total Demand Records"
-          value={summary.totalRecords}
+          title="Demand records"
+          value={formatNumber(summary.totalRecords)}
           icon={ClipboardList}
-          color="blue"
+          tone="blue"
+          hint="All recorded entries"
         />
-
         <SummaryCard
-          title="Total Demand Quantity"
-          value={summary.totalQuantity.toLocaleString("en-IN")}
+          title="Total demand quantity"
+          value={formatNumber(summary.totalQuantity)}
           icon={TrendingUp}
-          color="green"
+          tone="green"
+          hint="Units requested"
         />
-
         <SummaryCard
-          title="Manual Records"
-          value={summary.manualCount}
+          title="Manual records"
+          value={formatNumber(summary.manualCount)}
           icon={Activity}
-          color="orange"
+          tone="orange"
+          hint="Manually captured"
         />
-
         <SummaryCard
-          title="Products With Demand"
-          value={summary.uniqueProducts}
+          title="Products with demand"
+          value={formatNumber(summary.uniqueProducts)}
           icon={Package}
-          color="purple"
+          tone="purple"
+          hint="Unique products"
         />
-      </div>
+      </section>
 
-      {/* Demand Records */}
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-        {/* Search and Filter */}
-
-        <div className="flex flex-col gap-4 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <section className="demands-panel">
+        <div className="demands-panel-head">
           <div>
-            <h2 className="font-bold text-slate-800">
-              Demand Records
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Showing {filteredDemands.length} of {demands.length} records
+            <div className="demands-section-kicker">RECORDS OVERVIEW</div>
+            <h2>Demand records</h2>
+            <p>
+              Showing {formatNumber(filteredDemands.length)} of{" "}
+              {formatNumber(demands.length)} records
             </p>
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 sm:w-64">
-              <Search size={17} className="shrink-0 text-slate-400" />
-
+          <div className="demands-filters">
+            <label className="demands-search">
+              <Search size={17} />
               <input
                 type="search"
                 placeholder="Search product, SKU or notes..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="w-full bg-transparent text-sm outline-none"
               />
-
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="text-xs font-medium text-blue-600"
+                  aria-label="Clear search"
                 >
-                  Clear
+                  <X size={15} />
                 </button>
               )}
-            </div>
-
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 sm:w-44">
-              <Filter size={17} className="shrink-0 text-slate-400" />
-
+            </label>
+            <label className="demands-select-wrap">
+              <Filter size={16} />
               <select
                 value={sourceFilter}
                 onChange={(event) => setSourceFilter(event.target.value)}
-                className="w-full bg-transparent text-sm outline-none"
               >
-                <option value="ALL">All Sources</option>
+                <option value="ALL">All sources</option>
                 <option value="SALE">Sale</option>
                 <option value="ORDER">Order</option>
                 <option value="MANUAL">Manual</option>
                 <option value="IMPORT">Import</option>
               </select>
-            </div>
+            </label>
           </div>
         </div>
 
-        {/* Loading */}
-
         {loading ? (
-          <div className="flex min-h-64 flex-col items-center justify-center gap-3">
-            <RefreshCw
-              className="animate-spin text-blue-600"
-              size={30}
-            />
-
-            <p className="text-sm text-slate-500">
-              Loading demand records...
-            </p>
+          <div className="demands-state">
+            <RefreshCw className="animate-spin" size={28} />
+            <span>Loading demand records...</span>
           </div>
         ) : filteredDemands.length === 0 ? (
-          <div className="flex min-h-64 flex-col items-center justify-center px-5 text-center">
-            <div className="rounded-full bg-slate-100 p-4">
-              <Activity size={35} className="text-slate-400" />
+          <div className="demands-empty">
+            <div className="demands-empty-icon">
+              <Boxes size={30} />
             </div>
-
-            <h3 className="mt-3 font-semibold text-slate-700">
+            <h3>
               {demands.length === 0
-                ? "No demand records available"
-                : "No matching demand records"}
+                ? "No demand records yet"
+                : "No matching records"}
             </h3>
-
-            <p className="mt-1 text-sm text-slate-400">
+            <p>
               {demands.length === 0
-                ? "Start by recording your first product demand."
-                : "Try a different search or source filter."}
+                ? "Create your first demand entry to start building demand history."
+                : "Try another search term or change the source filter."}
             </p>
-
             {demands.length === 0 && products.length > 0 && (
               <button
+                className="demands-btn demands-btn-primary"
                 type="button"
                 onClick={openAddModal}
-                className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Add First Demand
+                <Plus size={17} /> Add first demand
               </button>
             )}
           </div>
         ) : (
           <>
-            {/* Table */}
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[950px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <div className="demands-table-wrap">
+              <table className="demands-table">
+                <thead>
                   <tr>
-                    <th className="px-5 py-4">Product</th>
-                    <th className="px-5 py-4">SKU</th>
-                    <th className="px-5 py-4">Demand Date</th>
-                    <th className="px-5 py-4">Quantity</th>
-                    <th className="px-5 py-4">Source</th>
-                    <th className="px-5 py-4">Notes</th>
-                    <th className="px-5 py-4 text-right">Action</th>
+                    <th>Product</th>
+                    <th>SKU</th>
+                    <th>Demand date</th>
+                    <th>Quantity</th>
+                    <th>Source</th>
+                    <th>Notes</th>
+                    <th className="text-right">Action</th>
                   </tr>
                 </thead>
-
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {paginatedDemands.map((demand) => (
-                    <tr
-                      key={demand.id}
-                      className="transition hover:bg-slate-50"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-                            <Package size={19} />
-                          </div>
-
-                          <div>
-                            <p className="font-semibold text-slate-800">
-                              {demand.product?.name || `Product #${demand.productId}`}
-                            </p>
-                          </div>
+                    <tr key={demand.id}>
+                      <td>
+                        <div className="demands-product-cell">
+                          <span className="demands-product-icon">
+                            <Package size={17} />
+                          </span>
+                          <span>
+                            <strong>
+                              {demand.product?.name ||
+                                `Product #${demand.productId}`}
+                            </strong>
+                            <small>Product demand</small>
+                          </span>
                         </div>
                       </td>
-
-                      <td className="px-5 py-4 font-medium text-slate-600">
-                        {demand.product?.sku || "—"}
+                      <td>
+                        <span className="demands-sku">
+                          {demand.product?.sku || "—"}
+                        </span>
                       </td>
-
-                      <td className="px-5 py-4 text-slate-600">
-                        <span className="inline-flex items-center gap-2">
-                          <CalendarDays size={15} className="text-slate-400" />
+                      <td>
+                        <span className="demands-date">
+                          <CalendarDays size={15} />
                           {formatDate(demand.demandDate)}
                         </span>
                       </td>
-
-                      <td className="px-5 py-4 font-semibold text-slate-800">
-                        {Number(demand.quantity || 0).toLocaleString("en-IN")} units
+                      <td>
+                        <strong className="demands-quantity">
+                          {formatNumber(demand.quantity)} <small>units</small>
+                        </strong>
                       </td>
-
-                      <td className="px-5 py-4">
+                      <td>
                         <SourceBadge source={demand.source} />
                       </td>
-
-                      <td className="max-w-48 truncate px-5 py-4 text-slate-500">
-                        {demand.notes || "—"}
+                      <td>
+                        <span
+                          className="demands-notes"
+                          title={demand.notes || ""}
+                        >
+                          {demand.notes || "—"}
+                        </span>
                       </td>
-
-                      <td className="px-5 py-4">
+                      <td>
                         <div className="flex justify-end">
                           <button
                             type="button"
-                            onClick={() => openDetails(demand)}
-                            title="View demand details"
-                            className="rounded-lg bg-blue-50 p-2 text-blue-600 transition hover:bg-blue-100"
+                            className="demands-view-btn"
+                            onClick={() => setSelectedDemand(demand)}
+                            aria-label="View demand details"
                           >
                             <Eye size={17} />
+                            <span>View</span>
                           </button>
                         </div>
                       </td>
@@ -599,332 +435,393 @@ export default function Demands() {
               </table>
             </div>
 
-            {/* Pagination */}
+            <div className="demands-mobile-list">
+              {paginatedDemands.map((demand) => (
+                <article className="demands-mobile-card" key={demand.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="demands-product-cell">
+                      <span className="demands-product-icon">
+                        <Package size={17} />
+                      </span>
+                      <span>
+                        <strong>
+                          {demand.product?.name ||
+                            `Product #${demand.productId}`}
+                        </strong>
+                        <small>
+                          {demand.product?.sku || "SKU unavailable"}
+                        </small>
+                      </span>
+                    </div>
+                    <SourceBadge source={demand.source} />
+                  </div>
+                  <div className="demands-mobile-meta">
+                    <span>
+                      <CalendarDays size={14} />
+                      {formatDate(demand.demandDate)}
+                    </span>
+                    <strong>{formatNumber(demand.quantity)} units</strong>
+                  </div>
+                  {demand.notes && (
+                    <p className="demands-mobile-notes">{demand.notes}</p>
+                  )}
+                  <button
+                    type="button"
+                    className="demands-mobile-view"
+                    onClick={() => setSelectedDemand(demand)}
+                  >
+                    <Eye size={16} /> View details
+                  </button>
+                </article>
+              ))}
+            </div>
 
-            <div className="flex flex-col justify-between gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
-              <p className="text-xs text-slate-500">
-                Showing {(currentPage - 1) * PAGE_SIZE + 1} to{" "}
-                {Math.min(currentPage * PAGE_SIZE, filteredDemands.length)}{" "}
-                of {filteredDemands.length} records
+            <footer className="demands-pagination">
+              <p>
+                Showing{" "}
+                <strong>
+                  {(currentPage - 1) * PAGE_SIZE + 1}–
+                  {Math.min(currentPage * PAGE_SIZE, filteredDemands.length)}
+                </strong>{" "}
+                of {filteredDemands.length}
               </p>
-
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  aria-label="Previous page"
                   disabled={currentPage === 1}
                   onClick={() =>
                     setCurrentPage((page) => Math.max(1, page - 1))
                   }
-                  className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <ChevronLeft size={17} />
                 </button>
-
-                <span className="px-3 text-sm font-semibold text-slate-700">
-                  Page {currentPage} of {totalPages}
+                <span>
+                  Page <strong>{currentPage}</strong> of{" "}
+                  <strong>{totalPages}</strong>
                 </span>
-
                 <button
                   type="button"
+                  aria-label="Next page"
                   disabled={currentPage === totalPages}
                   onClick={() =>
                     setCurrentPage((page) => Math.min(totalPages, page + 1))
                   }
-                  className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <ChevronRight size={17} />
                 </button>
               </div>
-            </div>
+            </footer>
           </>
         )}
       </section>
 
-      {/* Add Demand Modal */}
-
       {modalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-6">
-          <div className="my-auto w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Record New Demand
-                </h2>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Enter product demand information
-                </p>
+        <div
+          className="demands-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeModal();
+          }}
+        >
+          <section
+            className="demands-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="demand-modal-title"
+          >
+            <header className="demands-modal-head">
+              <div className="demands-modal-title-icon">
+                <TrendingUp size={21} />
               </div>
-
+              <div className="min-w-0">
+                <div className="demands-section-kicker">NEW ENTRY</div>
+                <h2 id="demand-modal-title">Record new demand</h2>
+                <p>Add a product demand signal to your records.</p>
+              </div>
               <button
                 type="button"
+                className="demands-icon-btn"
                 onClick={closeModal}
                 disabled={saving}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                aria-label="Close form"
               >
-                <X size={21} />
+                <X size={20} />
               </button>
-            </div>
-
+            </header>
             <form onSubmit={handleSubmit}>
-              <div className="grid max-h-[65vh] grid-cols-1 gap-4 overflow-y-auto p-5 sm:grid-cols-2">
-
-                <FormField label="Product *">
-                  <select
-                    name="productId"
-                    value={form.productId}
-                    onChange={handleChange}
-                    required
-                    disabled={productsLoading}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
-                  >
-                    <option value="">
-                      {productsLoading ? "Loading products..." : "Select Product"}
-                    </option>
-
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name} ({product.sku})
+              <div className="demands-modal-body">
+                <div className="demands-form-intro">
+                  <FileText size={17} />
+                  <span>Demand information</span>
+                  <small>Fields marked * are required</small>
+                </div>
+                <div className="demands-form-grid">
+                  <FormField label="Product" required className="span-2">
+                    <select
+                      name="productId"
+                      value={form.productId}
+                      onChange={handleChange}
+                      required
+                      disabled={productsLoading}
+                      className="demands-input"
+                    >
+                      <option value="">
+                        {productsLoading
+                          ? "Loading products..."
+                          : "Choose a product"}
                       </option>
-                    ))}
-                  </select>
-                </FormField>
-
-                <FormField label="Demand Date *">
-                  <input
-                    type="date"
-                    name="demandDate"
-                    value={form.demandDate}
-                    onChange={handleChange}
-                    required
-                    className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </FormField>
-
-                <FormField label="Demand Quantity *">
-                  <input
-                    type="number"
-                    name="quantity"
-                    min="1"
-                    step="1"
-                    value={form.quantity}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter quantity"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </FormField>
-
-                <FormField label="Demand Source *">
-                  <select
-                    name="source"
-                    value={form.source}
-                    onChange={handleChange}
-                    required
-                    className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  >
-                    <option value="MANUAL">Manual</option>
-                    <option value="SALE">Sale</option>
-                    <option value="ORDER">Order</option>
-                    <option value="IMPORT">Import</option>
-                  </select>
-                </FormField>
-
-                <div className="sm:col-span-2">
-                  <FormField label="Notes">
+                      {products.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name} ({product.sku})
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  {selectedProduct && (
+                    <div className="demands-selected-product span-2">
+                      <span className="demands-product-icon">
+                        <Package size={17} />
+                      </span>
+                      <div>
+                        <strong>{selectedProduct.name}</strong>
+                        <small>SKU: {selectedProduct.sku || "—"}</small>
+                      </div>
+                      <span className="selected-check">Selected</span>
+                    </div>
+                  )}
+                  <FormField label="Demand date" required>
+                    <div className="demands-input-icon">
+                      <CalendarDays size={16} />
+                      <input
+                        type="date"
+                        name="demandDate"
+                        value={form.demandDate}
+                        onChange={handleChange}
+                        required
+                        className="demands-input"
+                      />
+                    </div>
+                  </FormField>
+                  <FormField label="Demand quantity" required>
+                    <div className="demands-input-icon">
+                      <Hash size={16} />
+                      <input
+                        type="number"
+                        name="quantity"
+                        min="1"
+                        step="1"
+                        value={form.quantity}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. 250"
+                        className="demands-input"
+                      />
+                    </div>
+                  </FormField>
+                  <FormField label="Demand source" required className="span-2">
+                    <select
+                      name="source"
+                      value={form.source}
+                      onChange={handleChange}
+                      required
+                      className="demands-input"
+                    >
+                      <option value="MANUAL">Manual entry</option>
+                      <option value="SALE">Sales</option>
+                      <option value="ORDER">Customer order</option>
+                      <option value="IMPORT">Data import</option>
+                    </select>
+                  </FormField>
+                  <FormField label="Notes" className="span-2">
                     <textarea
                       name="notes"
                       value={form.notes}
                       onChange={handleChange}
                       rows={3}
-                      placeholder="Enter additional information..."
-                      className="w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      maxLength={1000}
+                      placeholder="Add context, reason, or additional demand information..."
+                      className="demands-input demands-textarea"
                     />
+                    <small className="demands-helper">
+                      {form.notes.length}/1000 characters
+                    </small>
                   </FormField>
                 </div>
+                <div className="demands-form-tip">
+                  <Sparkles size={16} />
+                  <span>
+                    Accurate demand records help improve forecasting and
+                    replenishment decisions.
+                  </span>
+                </div>
               </div>
-
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end">
+              <footer className="demands-modal-foot">
                 <button
                   type="button"
+                  className="demands-btn demands-btn-secondary"
                   onClick={closeModal}
                   disabled={saving}
-                  className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
+                  className="demands-btn demands-btn-primary"
                   disabled={saving || productsLoading || products.length === 0}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving && (
-                    <RefreshCw size={16} className="animate-spin" />
+                  {saving ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={17} /> Save demand record
+                    </>
                   )}
-
-                  {saving ? "Saving..." : "Save Demand"}
                 </button>
-              </div>
+              </footer>
             </form>
-          </div>
+          </section>
         </div>
       )}
 
-      {/* Demand Details Modal */}
-
       {selectedDemand && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3">
-          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="font-bold text-slate-900">
-                Demand Details
-              </h2>
-
+        <div
+          className="demands-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedDemand(null);
+          }}
+        >
+          <section
+            className="demands-modal demands-details-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="demand-details-title"
+          >
+            <header className="demands-modal-head">
+              <div className="demands-modal-title-icon">
+                <Eye size={21} />
+              </div>
+              <div className="min-w-0">
+                <div className="demands-section-kicker">RECORD INFORMATION</div>
+                <h2 id="demand-details-title">Demand details</h2>
+                <p>Review the selected demand record.</p>
+              </div>
               <button
                 type="button"
-                onClick={closeDetails}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                className="demands-icon-btn"
+                onClick={() => setSelectedDemand(null)}
+                aria-label="Close details"
               >
                 <X size={20} />
               </button>
-            </div>
-
-            <div className="space-y-4 p-5">
-              <DetailRow
-                label="Product"
-                value={selectedDemand.product?.name || `Product #${selectedDemand.productId}`}
-              />
-
-              <DetailRow
-                label="SKU"
-                value={selectedDemand.product?.sku || "—"}
-              />
-
-              <DetailRow
-                label="Demand Date"
-                value={formatDate(selectedDemand.demandDate)}
-              />
-
-              <DetailRow
-                label="Quantity"
-                value={`${Number(selectedDemand.quantity || 0)} units`}
-              />
-
-              <DetailRow
-                label="Source"
-                value={selectedDemand.source}
-              />
-
-              <div>
-                <p className="text-xs font-semibold uppercase text-slate-400">
-                  Notes
-                </p>
-
-                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-                  {selectedDemand.notes || "No notes available"}
+            </header>
+            <div className="demands-details-body">
+              <div className="demands-details-product">
+                <span className="demands-product-icon">
+                  <Package size={20} />
+                </span>
+                <div>
+                  <strong>
+                    {selectedDemand.product?.name ||
+                      `Product #${selectedDemand.productId}`}
+                  </strong>
+                  <small>SKU: {selectedDemand.product?.sku || "—"}</small>
+                </div>
+                <SourceBadge source={selectedDemand.source} />
+              </div>
+              <div className="demands-detail-grid">
+                <DetailItem
+                  label="Demand date"
+                  value={formatDate(selectedDemand.demandDate)}
+                  icon={CalendarDays}
+                />
+                <DetailItem
+                  label="Demand quantity"
+                  value={`${formatNumber(selectedDemand.quantity)} units`}
+                  icon={TrendingUp}
+                />
+                <DetailItem
+                  label="Source"
+                  value={selectedDemand.source || "—"}
+                  icon={Activity}
+                />
+                <DetailItem
+                  label="Record ID"
+                  value={`#${selectedDemand.id}`}
+                  icon={Hash}
+                />
+              </div>
+              <div className="demands-detail-notes">
+                <span>Notes</span>
+                <p>
+                  {selectedDemand.notes ||
+                    "No notes available for this record."}
                 </p>
               </div>
             </div>
-
-            <div className="border-t border-slate-100 p-5 text-right">
+            <footer className="demands-modal-foot">
               <button
                 type="button"
-                onClick={closeDetails}
-                className="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                className="demands-btn demands-btn-secondary"
+                onClick={() => setSelectedDemand(null)}
               >
-                Close
+                Close details
               </button>
-            </div>
-          </div>
+            </footer>
+          </section>
         </div>
       )}
-    </div>
+    </main>
   );
 }
 
-// ==========================================
-// Summary Card
-// ==========================================
-
-function SummaryCard({ title, value, icon: Icon, color }) {
-  const colors = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-emerald-50 text-emerald-600",
-    orange: "bg-orange-50 text-orange-600",
-    purple: "bg-violet-50 text-violet-600",
-  };
-
+function SummaryCard({ title, value, icon: Icon, tone, hint }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-500">
-          {title}
-        </p>
-
-        <div className={`rounded-xl p-3 ${colors[color]}`}>
-          <Icon size={22} />
-        </div>
+    <article className={`demands-stat-card tone-${tone}`}>
+      <div className="demands-stat-top">
+        <span>{title}</span>
+        <span className="demands-stat-icon">
+          <Icon size={20} />
+        </span>
       </div>
-
-      <h3 className="mt-4 text-3xl font-bold text-slate-900">
-        {value}
-      </h3>
-    </div>
+      <strong>{value}</strong>
+      <small>{hint}</small>
+      <ArrowUpRight className="demands-stat-arrow" size={16} />
+    </article>
   );
 }
-
-// ==========================================
-// Source Badge
-// ==========================================
-
 function SourceBadge({ source }) {
-  const styles = {
-    SALE: "bg-emerald-100 text-emerald-700",
-    ORDER: "bg-blue-100 text-blue-700",
-    MANUAL: "bg-violet-100 text-violet-700",
-    IMPORT: "bg-orange-100 text-orange-700",
-  };
-
+  const normalized = source || "UNKNOWN";
   return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-        styles[source] || "bg-slate-100 text-slate-600"
-      }`}
-    >
-      {source || "UNKNOWN"}
+    <span className={`demands-source source-${normalized.toLowerCase()}`}>
+      {normalized.replaceAll("_", " ")}
     </span>
   );
 }
-
-// ==========================================
-// Form Field
-// ==========================================
-
-function FormField({ label, children }) {
+function FormField({ label, required, children, className = "" }) {
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-semibold text-slate-700">
+    <label className={`demands-field ${className}`}>
+      <span>
         {label}
-      </label>
-
+        {required && <b> *</b>}
+      </span>
       {children}
-    </div>
+    </label>
   );
 }
-
-// ==========================================
-// Detail Row
-// ==========================================
-
-function DetailRow({ label, value }) {
+function DetailItem({ label, value, icon: Icon }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-right text-sm font-semibold text-slate-800">
-        {value}
-      </p>
+    <div className="demands-detail-item">
+      <span className="demands-detail-icon">
+        <Icon size={16} />
+      </span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
     </div>
   );
 }

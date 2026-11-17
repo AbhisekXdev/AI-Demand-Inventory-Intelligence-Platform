@@ -1,35 +1,38 @@
 # Dependencies
 node_modules/
-**/node_modules/
 
-# Environment variables
+# Environment variables and secrets
 .env
-.env.local
-.env.development
-.env.production
-**/.env
+.env.*
+!.env.example
 
 # Logs
-*.log
 logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
-# Build
-dist/
-build/
+# Runtime files
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage and testing
 coverage/
+
+# Uploads (if storing user-uploaded files locally)
+uploads/*
+!uploads/.gitkeep
+
+# Cache
+.cache/
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-
-# Secrets
-*.pem
-*.key

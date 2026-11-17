@@ -17,6 +17,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import "./PurchaseOrders.css";
+
 
 import {
   getPurchaseOrders,
@@ -74,7 +76,7 @@ const StatusBadge = ({ status }) => (
 );
 
 const StatCard = ({ title, value, icon: Icon, color }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <div className="po-stat-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm text-slate-500">{title}</p>
@@ -716,11 +718,11 @@ const PurchaseOrders = () => {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="purchase-orders-page space-y-6 p-3 sm:p-4 md:p-6">
       {/* HEADER */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
             Purchase Order Management
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -783,7 +785,7 @@ const PurchaseOrders = () => {
       </div>
 
       {/* SEARCH AND FILTERS */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:flex-row">
+      <div className="flex flex-col gap-3 po-filter-panel rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 md:flex-row">
         <div className="relative flex-1">
           <Search
             size={18}
@@ -821,7 +823,7 @@ const PurchaseOrders = () => {
       </div>
 
       {/* PURCHASE ORDERS TABLE */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden po-table-shell rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -956,9 +958,9 @@ const PurchaseOrders = () => {
 
       {/* CREATE PURCHASE ORDER MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-xl">
-            <div className="sticky top-0 flex items-center justify-between border-b bg-white px-5 py-4">
+        <div className="po-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5">
+          <div className="po-modal-panel po-create-panel max-h-[94dvh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="po-modal-header sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-4 py-4 backdrop-blur sm:px-6">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
                   Create Purchase Order
@@ -979,7 +981,7 @@ const PurchaseOrders = () => {
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="space-y-5 p-5">
+            <form onSubmit={handleCreate} className="po-form-body space-y-6 p-4 sm:p-6">
               {/* SUPPLIER */}
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
@@ -1260,9 +1262,9 @@ const PurchaseOrders = () => {
       )}
             {/* QUICK ADD SUPPLIER MODAL */}
       {showSupplierModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b p-5">
+        <div className="po-modal-overlay po-modal-overlay-top fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-3 sm:p-5">
+          <div className="po-modal-panel po-quick-panel max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="po-modal-header sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 p-4 backdrop-blur sm:p-6">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
                   Quick Add Supplier
@@ -1284,7 +1286,7 @@ const PurchaseOrders = () => {
 
             <form
               onSubmit={handleQuickAddSupplier}
-              className="space-y-4 p-5"
+              className="po-form-body space-y-5 p-4 sm:p-6"
             >
               {[
                 ["name", "Supplier Name *", "text"],
@@ -1337,9 +1339,9 @@ const PurchaseOrders = () => {
 
       {/* QUICK ADD PRODUCT MODAL */}
       {showProductModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b p-5">
+        <div className="po-modal-overlay po-modal-overlay-top fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-3 sm:p-5">
+          <div className="po-modal-panel po-quick-panel max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="po-modal-header sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 p-4 backdrop-blur sm:p-6">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
                   Quick Add Product
@@ -1361,7 +1363,7 @@ const PurchaseOrders = () => {
 
             <form
               onSubmit={handleQuickAddProduct}
-              className="space-y-4 p-5"
+              className="po-form-body space-y-5 p-4 sm:p-6"
             >
               {[
                 ["name", "Product Name *", "text"],
@@ -1474,9 +1476,9 @@ const PurchaseOrders = () => {
 
       {/* PURCHASE ORDER DETAILS MODAL */}
       {showDetailsModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b p-5">
+        <div className="po-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5">
+          <div className="po-modal-panel po-detail-panel max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="po-modal-header sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 p-4 backdrop-blur sm:p-6">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
                   {selectedOrder.poNumber}
@@ -1495,7 +1497,7 @@ const PurchaseOrders = () => {
               </button>
             </div>
 
-            <div className="space-y-5 p-5">
+            <div className="po-form-body space-y-6 p-4 sm:p-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <p className="text-xs text-slate-500">Supplier</p>
@@ -1613,9 +1615,9 @@ const PurchaseOrders = () => {
 
       {/* RECEIVE STOCK MODAL */}
       {showReceiveModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b p-5">
+        <div className="po-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5">
+          <div className="po-modal-panel po-receive-panel max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="po-modal-header sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 p-4 backdrop-blur sm:p-6">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
                   Receive Stock
@@ -1636,7 +1638,7 @@ const PurchaseOrders = () => {
 
             <form
               onSubmit={handleReceive}
-              className="space-y-4 p-5"
+              className="po-form-body space-y-5 p-4 sm:p-6"
             >
               <p className="text-sm text-slate-600">
                 Enter the quantity received for each product. Only

@@ -1,10 +1,16 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+} from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-
 import MainLayout from "./components/layout/MainLayout";
+
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import Products from "./pages/Products";
@@ -17,11 +23,24 @@ import Replenishment from "./pages/Replenishment";
 import InventoryAnalytics from "./pages/InventoryAnalytics";
 import Intelligence from "./pages/Intelligence";
 import Reports from "./pages/Reports";
-
+import Employees from "./pages/Employees";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Profile from "./pages/Profile";
+import Help from "./pages/Help";
+import Settings from "./pages/Settings";
 
-function App() {
+function AdminRoute() {
+  const { user } = useAuth();
+
+  if (String(user?.role || "").toLowerCase() !== "admin") {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Outlet />;
+}
+
+export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -30,7 +49,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Protected application routes */}
+          {/* Protected application */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Dashboard />} />
@@ -45,6 +64,16 @@ function App() {
               <Route path="analytics" element={<InventoryAnalytics />} />
               <Route path="intelligence" element={<Intelligence />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="profile" element={<Profile />} />
+
+              {/* Help and Settings are protected */}
+              <Route path="help" element={<Help />} />
+              <Route path="settings" element={<Settings />} />
+
+              {/* Admin-only pages */}
+              <Route element={<AdminRoute />}>
+                <Route path="employees" element={<Employees />} />
+              </Route>
             </Route>
           </Route>
 
@@ -56,5 +85,3 @@ function App() {
     </BrowserRouter>
   );
 }
-
-export default App;

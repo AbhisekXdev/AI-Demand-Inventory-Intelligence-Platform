@@ -15,6 +15,10 @@ const pageTitles = {
   "/analytics": "Inventory Analytics",
   "/intelligence": "AI Intelligence",
   "/reports": "Reports & Insights",
+  "/employees": "Employee Management",
+  "/profile": "My Profile",
+  "/help": "Help Center",
+  "/settings": "Settings"
 };
 
 export default function MainLayout() {
@@ -26,8 +30,7 @@ export default function MainLayout() {
 
   return (
     <div className="min-h-screen bg-[#f5f7fb] lg:flex">
-
-      {/* Sidebar */}
+      {/* Sidebar - Desktop and Mobile */}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -35,7 +38,6 @@ export default function MainLayout() {
 
       {/* Main Application */}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-
         {/* Navbar */}
         <Navbar
           onMenuClick={() => setIsSidebarOpen(true)}
@@ -43,7 +45,6 @@ export default function MainLayout() {
 
         {/* Page Content */}
         <main className="flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-
           {/* Page Header */}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -72,7 +73,6 @@ export default function MainLayout() {
           <div className="min-w-0">
             <Outlet />
           </div>
-
         </main>
 
         {/* Footer */}

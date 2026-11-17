@@ -1,182 +1,140 @@
-import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+
+import { Link, Navigate } from "react-router-dom";
 import {
   Boxes,
-  Eye,
-  EyeOff,
-  LockKeyhole,
+  ShieldCheck,
   Mail,
-  User,
-  RefreshCw,
+  LockKeyhole,
+  Building2,
+  UserX,
+  ArrowLeft,
 } from "lucide-react";
-import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 
+const ADMIN_EMAIL = "codepilot.devteam@gmail.com";
+
 export default function Register() {
-  const { register, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
+  const { isAuthenticated } = useAuth();
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
-  const handleChange = (event) => {
-    setForm((previous) => ({
-      ...previous,
-      [event.target.name]: event.target.value,
-    }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    if (!form.name.trim() || !form.email.trim() || !form.password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const response = await register({
-        name: form.name.trim(),
-        email: form.email.trim(),
-        password: form.password,
-      });
-
-      toast.success(
-        response?.message || "Account created successfully"
-      );
-
-      navigate("/login", { replace: true });
-    } catch (error) {
-  toast.error(
-    error.userMessage || "Registration failed."
-  );
-} finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl sm:p-9">
-        <div className="mb-8 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-            <Boxes size={32} />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-10">
+
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -left-32 -top-32 h-96 w-96 animate-pulse rounded-full bg-blue-600/20 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 h-96 w-96 animate-pulse rounded-full bg-cyan-500/20 blur-3xl" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-lg animate-[fadeIn_0.7s_ease-out]">
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.08] p-7 text-center shadow-2xl shadow-black/30 backdrop-blur-2xl sm:p-10">
+
+          {/* Logo */}
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-xl shadow-blue-500/30">
+            <Boxes size={40} />
           </div>
 
-          <h1 className="mt-5 text-2xl font-bold text-slate-900">
-            Create Account
+          <h1 className="mt-6 text-3xl font-bold text-white">
+            Internal Access Only
           </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
-            Register to access the inventory platform
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            AI Demand & Inventory Intelligence Platform
           </p>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Full Name
-            </label>
-
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
-              <User size={18} className="text-slate-400" />
-
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Enter your name"
-                autoComplete="name"
-                className="w-full py-3 text-sm outline-none"
-                required
-              />
+          {/* Restricted Access */}
+          <div className="mt-8 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-5">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-400/10 text-amber-400">
+              <UserX size={28} />
             </div>
+
+            <h2 className="mt-4 text-lg font-bold text-amber-300">
+              Public Registration Not Allowed
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              This application is developed exclusively for internal
+              business use. Registration and access are restricted to
+              authorized company personnel.
+            </p>
+
+            <p className="mt-3 text-sm font-medium text-slate-200">
+              Outsiders are not permitted to create an account.
+            </p>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Email Address
-            </label>
+          {/* Admin Contact */}
+          <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900/60 p-5 text-left">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                <ShieldCheck size={22} />
+              </div>
 
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
-              <Mail size={18} className="text-slate-400" />
-
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="Enter your email"
-                autoComplete="email"
-                className="w-full py-3 text-sm outline-none"
-                required
-              />
+              <div>
+                <h3 className="font-semibold text-white">
+                  Need Access?
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Contact your System Administrator
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Password
-            </label>
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+                Admin Contact Email
+              </p>
 
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
-              <LockKeyhole size={18} className="text-slate-400" />
-
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="Create a password"
-                autoComplete="new-password"
-                className="w-full py-3 text-sm outline-none"
-                required
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPassword((value) => !value)}
-                className="text-slate-400 hover:text-slate-700"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+              <a
+                href={`mailto:${ADMIN_EMAIL}`}
+                className="flex items-center gap-2 break-all text-sm font-semibold text-cyan-400 transition hover:text-cyan-300"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+                <Mail size={17} className="shrink-0" />
+                {ADMIN_EMAIL}
+              </a>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading && <RefreshCw size={17} className="animate-spin" />}
-            {loading ? "Creating account..." : "Create Account"}
-          </button>
-        </form>
+          {/* Internal Use Notice */}
+          <div className="mt-6 flex items-start gap-3 rounded-xl bg-blue-500/10 p-4 text-left">
+            <Building2 size={19} className="mt-0.5 shrink-0 text-blue-400" />
+            <p className="text-xs leading-5 text-slate-400">
+              This system is intended for authorized employees,
+              managers and administrators of the organization only.
+            </p>
+          </div>
 
-        <p className="mt-7 text-center text-sm text-slate-500">
-          Already have an account?{" "}
+          {/* Login Link */}
           <Link
             to="/login"
-            className="font-semibold text-blue-600 hover:text-blue-700"
+            className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
           >
-            Sign In
+            <ArrowLeft size={18} />
+            Back to Secure Login
           </Link>
-        </p>
+
+          <p className="mt-7 text-xs text-slate-500">
+            © {new Date().getFullYear()} AI Demand & Inventory Intelligence Platform
+          </p>
+        </div>
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,4 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+
 
 * {
   box-sizing: border-box;
@@ -29,4 +31,291 @@ body {
 .form-input::placeholder {
   color: #94a3b8;
 }
+
+
+/* Premium application typography */
+
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Premium navbar typography */
+.app-navbar {
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.015em;
+}
+
+.app-navbar h1 {
+  letter-spacing: -0.035em;
+}
+
+.app-navbar h3,
+.app-navbar h4 {
+  letter-spacing: -0.02em;
+}
+
+/* Pointer cursor for interactive elements */
+button,
+[role="button"],
+a,
+select {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
+/* Dropdown entrance animation */
+@keyframes navbarDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.navbar-dropdown {
+  transform-origin: top right;
+  animation: navbarDropdownIn 180ms ease-out;
+}
+
+/* Keyboard accessibility */
+.app-navbar button:focus-visible,
+.app-navbar input:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 3px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .app-navbar *,
+  .navbar-dropdown {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+
+/* Inventory page typography */
+.inventory-page {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.inventory-page h1,
+.inventory-page h2,
+.inventory-page h3 {
+  letter-spacing: -0.035em;
+}
+
+/* Inventory form fields */
+.inventory-page .form-input {
+  display: block;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 13px;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.inventory-page .form-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.inventory-page .form-input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 4px rgb(59 130 246 / 10%);
+}
+
+.inventory-page .form-input:disabled {
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+/* Cursor behavior */
+.inventory-page button,
+.inventory-page select {
+  cursor: pointer;
+}
+
+.inventory-page button:disabled,
+.inventory-page select:disabled {
+  cursor: not-allowed;
+}
+
+.inventory-page input,
+.inventory-page textarea {
+  cursor: text;
+}
+
+/* Modal entrance */
+@keyframes inventoryModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes inventoryOverlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.inventory-modal-overlay {
+  animation: inventoryOverlayIn 180ms ease-out;
+}
+
+.inventory-modal {
+  animation: inventoryModalIn 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: center;
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .inventory-page *,
+  .inventory-page *::before,
+  .inventory-page *::after,
+  .inventory-modal,
+  .inventory-modal-overlay {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+
+/* =========================================
+   PREMIUM SUPPLIER MANAGEMENT
+========================================= */
+
+.suppliers-page {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.suppliers-page h1,
+.suppliers-page h2,
+.suppliers-page h3 {
+  letter-spacing: -0.035em;
+}
+
+/* Supplier form fields */
+.suppliers-page .form-input {
+  display: block;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px 13px;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.suppliers-page .form-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.suppliers-page .form-input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 4px rgb(59 130 246 / 10%);
+}
+
+/* Cursor behavior */
+.suppliers-page button,
+.suppliers-page select,
+.suppliers-page a,
+.suppliers-page input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.suppliers-page button:disabled {
+  cursor: not-allowed;
+}
+
+.suppliers-page input:not([type="checkbox"]),
+.suppliers-page textarea {
+  cursor: text;
+}
+
+/* Modal entrance animation */
+@keyframes supplierModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes supplierOverlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.supplier-modal-overlay {
+  animation: supplierOverlayIn 180ms ease-out;
+}
+
+.supplier-modal {
+  animation: supplierModalIn 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: center;
+}
+
+/* Keyboard accessibility */
+.suppliers-page button:focus-visible,
+.suppliers-page input:focus-visible,
+.suppliers-page textarea:focus-visible,
+.suppliers-page select:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .suppliers-page *,
+  .supplier-modal,
+  .supplier-modal-overlay {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
 

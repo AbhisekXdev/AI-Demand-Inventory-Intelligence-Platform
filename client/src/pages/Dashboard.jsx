@@ -12,6 +12,9 @@ import {
   XCircle,
   CheckCircle,
   IndianRupee,
+  Search,
+  Filter,
+  Clock3,
   X,
   Sparkles,
   UserRound,
@@ -84,6 +87,8 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [poSearch, setPoSearch] = useState("");
+  const [poStatusFilter, setPoStatusFilter] = useState("ALL");
 
   // Welcome popup state
   const [showWelcome, setShowWelcome] = useState(false);
@@ -269,6 +274,17 @@ export default function Dashboard() {
   const totalStockAlerts = stockAlerts.length;
 
   const recentOrders = summary.recentPurchaseOrders ?? [];
+
+  const filteredRecentOrders = recentOrders.filter((order) => {
+    const searchText = poSearch.trim().toLowerCase();
+    const matchesSearch = [order.poNumber, order.id, order.status].some((value) =>
+      String(value ?? "").toLowerCase().includes(searchText)
+    );
+    const matchesStatus =
+      poStatusFilter === "ALL" ||
+      String(order.status ?? "").toUpperCase() === poStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const totalProducts = summary.products?.total ?? 0;
   const totalSuppliers = summary.suppliers?.total ?? 0;
@@ -609,86 +625,86 @@ export default function Dashboard() {
         </section>
 
         {/* Recent Purchase Orders */}
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col justify-between gap-2 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:p-6">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">
-                Recent Purchase Orders
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Latest purchase order activity
-              </p>
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:shadow-lg">
+          <div className="border-b border-slate-100 bg-gradient-to-r from-white to-indigo-50/40 p-5 sm:p-6">
+            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                  <ClipboardList size={23} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Recent Purchase Orders</h3>
+                  <p className="mt-1 text-xs text-slate-500">Monitor purchasing activity and order status</p>
+                </div>
+              </div>
+              <span className="w-fit rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
+                {filteredRecentOrders.length} of {recentOrders.length} orders
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-              <ClipboardList size={16} />
-              {recentOrders.length} recent records
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <div className="flex h-11 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-50 sm:max-w-sm">
+                <Search size={17} className="shrink-0 text-slate-400" />
+                <input type="search" value={poSearch} onChange={(e) => setPoSearch(e.target.value)} placeholder="Search PO number or status..." className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400" />
+                {poSearch && <button type="button" onClick={() => setPoSearch("")} className="text-xs font-semibold text-indigo-600">Clear</button>}
+              </div>
+              <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 sm:w-48">
+                <Filter size={16} className="text-slate-400" />
+                <select value={poStatusFilter} onChange={(e) => setPoStatusFilter(e.target.value)} className="w-full bg-transparent text-sm text-slate-700 outline-none">
+                  <option value="ALL">All Status</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="RECEIVED">Received</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[650px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-5 py-4">PO Number</th>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50">
+                <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="px-6 py-4">Purchase Order</th>
                   <th className="px-5 py-4">Order Date</th>
-                  <th className="px-5 py-4">Amount</th>
-                  <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">Order Amount</th>
+                  <th className="px-5 py-4">Order Status</th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-slate-100">
-                {recentOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="transition hover:bg-slate-50"
-                  >
-                    <td className="px-5 py-4 font-semibold text-slate-800">
-                      {order.poNumber ?? `PO-${order.id}`}
+                {filteredRecentOrders.map((order, index) => (
+                  <tr key={order.id} className="dashboard-table-row transition-colors hover:bg-indigo-50/40" style={{ animationDelay: `${index * 50}ms` }}>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><ShoppingCart size={19} /></div>
+                        <div><p className="font-bold text-slate-800">{order.poNumber ?? `PO-${order.id}`}</p><p className="mt-1 text-[11px] text-slate-400">Purchase order</p></div>
+                      </div>
                     </td>
-
-                    <td className="px-5 py-4 text-slate-500">
-                      {formatDate(order.orderDate)}
-                    </td>
-
-                    <td className="px-5 py-4 font-semibold text-slate-800">
-                      {formatCurrency(order.totalAmount)}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyle(order.status)}`}
-                      >
-                        {order.status ?? "UNKNOWN"}
-                      </span>
-                    </td>
+                    <td className="px-5 py-4"><div className="flex items-center gap-2 text-slate-600"><Clock3 size={15} className="text-slate-400" />{formatDate(order.orderDate)}</div></td>
+                    <td className="px-5 py-4 font-bold text-slate-800">{formatCurrency(order.totalAmount)}</td>
+                    <td className="px-5 py-4"><span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold ${getStatusStyle(order.status)}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{order.status ?? "UNKNOWN"}</span></td>
                   </tr>
                 ))}
-
-                {recentOrders.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-5 py-12 text-center"
-                    >
-                      <ClipboardList
-                        size={30}
-                        className="mx-auto text-slate-300"
-                      />
-
-                      <p className="mt-3 font-medium text-slate-600">
-                        No purchase orders available
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        Your recent orders will appear here.
-                      </p>
-                    </td>
-                  </tr>
-                )}
+                {filteredRecentOrders.length === 0 && <tr><td colSpan={4} className="px-5 py-14 text-center"><ClipboardList size={34} className="mx-auto text-slate-300" /><p className="mt-3 font-semibold text-slate-700">No matching purchase orders</p><p className="mt-1 text-xs text-slate-400">Change your search or status filter.</p></td></tr>}
               </tbody>
             </table>
+          </div>
+
+          <div className="grid gap-3 p-3 md:hidden">
+            {filteredRecentOrders.map((order, index) => (
+              <article key={order.id} className="dashboard-table-row rounded-xl border border-slate-200 bg-white p-4" style={{ animationDelay: `${index * 50}ms` }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><ShoppingCart size={19} /></div>
+                    <div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{order.poNumber ?? `PO-${order.id}`}</p><p className="mt-1 text-xs text-slate-400">{formatDate(order.orderDate)}</p></div>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${getStatusStyle(order.status)}`}>{order.status ?? "UNKNOWN"}</span>
+                </div>
+                <div className="mt-4 border-t border-slate-100 pt-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Order Amount</p><p className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(order.totalAmount)}</p></div>
+              </article>
+            ))}
+            {filteredRecentOrders.length === 0 && <div className="py-12 text-center"><ClipboardList size={32} className="mx-auto text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">No matching purchase orders</p><p className="mt-1 text-xs text-slate-400">Try changing your search or filter.</p></div>}
           </div>
         </section>
 
@@ -696,6 +712,17 @@ export default function Dashboard() {
         <section>
           <AIInsights data={insights} />
         </section>
+
+        <style>{`
+          .dashboard-table-row { animation: dashboardRowIn .4s ease-out both; }
+          @keyframes dashboardRowIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .dashboard-table-row { animation: none !important; }
+          }
+        `}</style>
 
         {/* Footer Information */}
         <div className="flex flex-col justify-between gap-2 border-t border-slate-200 pt-4 text-xs text-slate-400 sm:flex-row">

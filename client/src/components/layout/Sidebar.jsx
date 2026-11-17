@@ -1,4 +1,3 @@
-
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -16,73 +15,47 @@ import {
   ChevronRight,
   Activity,
   Sparkles,
+  Users,
+  HelpCircle,
+  Settings,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 const menuItems = [
-  {
-    name: "Dashboard",
-    path: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Products",
-    path: "/products",
-    icon: Package,
-  },
-  {
-    name: "Inventory",
-    path: "/inventory",
-    icon: Boxes,
-  },
-  {
-    name: "Suppliers",
-    path: "/suppliers",
-    icon: Truck,
-  },
-  {
-    name: "Purchase Orders",
-    path: "/purchase-orders",
-    icon: ShoppingCart,
-  },
-  {
-    name: "Demand",
-    path: "/demands",
-    icon: TrendingUp,
-  },
-  {
-    name: "Replenishment",
-    path: "/replenishment",
-    icon: RefreshCw,
-  },
+  { name: "Dashboard", path: "/", icon: LayoutDashboard },
+  { name: "Products", path: "/products", icon: Package },
+  { name: "Inventory", path: "/inventory", icon: Boxes },
+  { name: "Suppliers", path: "/suppliers", icon: Truck },
+  { name: "Purchase Orders", path: "/purchase-orders", icon: ShoppingCart },
+  { name: "Demand", path: "/demands", icon: TrendingUp },
+  { name: "Replenishment", path: "/replenishment", icon: RefreshCw },
+  { name: "Employees", path: "/employees", icon: Users, adminOnly: true },
 ];
 
 const intelligenceItems = [
-  {
-  name: "Inventory Analytics",
-  path: "/analytics",
-  icon: BarChart3,
-},
-  {
-    name: "AI Intelligence",
-    path: "/intelligence",
-    icon: BrainCircuit,
-  },
-  {
-    name: "Reports",
-    path: "/reports",
-    icon: FileText,
-  },
+  { name: "Inventory Analytics", path: "/analytics", icon: BarChart3 },
+  { name: "AI Intelligence", path: "/intelligence", icon: BrainCircuit },
+  { name: "Reports", path: "/reports", icon: FileText },
 ];
 
-function NavigationSection({ title, items, onClose }) {
+const supportItems = [
+  { name: "Help Center", path: "/help", icon: HelpCircle },
+  { name: "Settings", path: "/settings", icon: Settings },
+];
+
+function NavigationSection({ title, items, onClose, isAdmin }) {
+  const visibleItems = items.filter((item) => !item.adminOnly || isAdmin);
+
+  if (!visibleItems.length) return null;
+
   return (
-    <div className="mb-7">
+    <section className="mb-7">
       <p className="mb-3 px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
         {title}
       </p>
 
       <nav className="space-y-1.5">
-        {items.map(({ name, path, icon: Icon }) => (
+        {visibleItems.map(({ name, path, icon: Icon }) => (
           <NavLink
             key={path}
             to={path}
@@ -99,9 +72,8 @@ function NavigationSection({ title, items, onClose }) {
             {({ isActive }) => (
               <>
                 {isActive && (
-                  <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white" />
+                  <span className="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-white" />
                 )}
-
                 <Icon
                   size={19}
                   strokeWidth={isActive ? 2.3 : 1.8}
@@ -111,9 +83,7 @@ function NavigationSection({ title, items, onClose }) {
                       : "text-slate-500 group-hover:scale-110 group-hover:text-blue-400"
                   }`}
                 />
-
                 <span className="flex-1">{name}</span>
-
                 <ChevronRight
                   size={15}
                   className={`transition-all ${
@@ -127,35 +97,35 @@ function NavigationSection({ title, items, onClose }) {
           </NavLink>
         ))}
       </nav>
-    </div>
+    </section>
   );
 }
 
 export default function Sidebar({ isOpen, onClose }) {
+  const { user } = useAuth();
+  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
+
   return (
     <>
-      {/* Mobile Overlay */}
       {isOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="Close navigation overlay"
           className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm lg:hidden"
           onClick={onClose}
-          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[280px] shrink-0 flex-col border-r border-slate-800/80 bg-[#0b1220] text-white shadow-2xl transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:z-30 lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Brand Header */}
         <div className="flex h-[76px] shrink-0 items-center justify-between border-b border-white/[0.07] px-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-950/50">
               <BoxesIcon size={23} strokeWidth={2.2} />
             </div>
-
             <div>
               <h1 className="text-[15px] font-bold tracking-tight text-white">
                 AI Inventory
@@ -167,6 +137,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close navigation menu"
             className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white lg:hidden"
@@ -175,46 +146,49 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Navigation */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 [scrollbar-width:thin] [scrollbar-color:#334155_transparent]">
+        <div className="flex-1 overflow-y-auto px-4 py-6 [scrollbar-color:#334155_transparent] [scrollbar-width:thin]">
           <NavigationSection
             title="Workspace"
             items={menuItems}
             onClose={onClose}
+            isAdmin={isAdmin}
           />
 
           <NavigationSection
             title="Intelligence & Reports"
             items={intelligenceItems}
             onClose={onClose}
+            isAdmin={isAdmin}
+          />
+
+          {/* Always the last navigation section */}
+          <NavigationSection
+            title="Support & Preferences"
+            items={supportItems}
+            onClose={onClose}
+            isAdmin={isAdmin}
           />
         </div>
 
-        {/* Platform Status */}
         <div className="shrink-0 border-t border-white/[0.07] p-4">
           <div className="relative overflow-hidden rounded-2xl border border-blue-400/15 bg-gradient-to-br from-blue-950/80 to-indigo-950/70 p-4">
             <div className="absolute -right-5 -top-5 h-20 w-20 rounded-full bg-blue-500/10 blur-2xl" />
-
             <div className="relative">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400">
                   <Sparkles size={17} />
                 </div>
-
                 <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   Online
                 </span>
               </div>
-
               <h3 className="text-xs font-bold text-white">
                 AI Powered Platform
               </h3>
-
               <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
                 Smarter demand forecasting and inventory decisions.
               </p>
-
               <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
                 <Activity size={13} className="text-blue-400" />
                 <span className="text-[10px] font-medium text-slate-400">
@@ -223,7 +197,6 @@ export default function Sidebar({ isOpen, onClose }) {
               </div>
             </div>
           </div>
-
           <p className="mt-4 text-center text-[9px] font-medium tracking-wider text-slate-600">
             AI DEMAND & INVENTORY PLATFORM
           </p>
