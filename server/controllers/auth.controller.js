@@ -1,54 +1,69 @@
+
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
-
 import { Op } from "sequelize";
+import { writeAuditLog } from "../services/auditLog.service.js";
 
+// ======================================================
+// REGISTER USER
+// ======================================================
 
-//Register User Controller
-const registerUser = async(req,res)=>{
-    try{
-        const{name,email,password} = req.body;
-        if(!name || !email || !password){
-            return res.status(400).json({
-                success: false,
-                message: "Name email and password are required",
-            });
-        }
-        const existingUser = await User.findOne({
-            where: {email},
-        });
-        if(existingUser){
-            return res.status(409).json({
-                success: false,
-                message: "User with this email already exists",
-            });
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = await User.create({
-            name,email,
-            password: hashedPassword,
-        });
-        return res.status(201).json({
-            success: true,
-            message: "User registered successfully",
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            },
-        });
+const registerUser = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
 
-    } catch(error){
-        console.error("Register Error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-        });
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Name email and password are required",
+      });
     }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      where: { email: normalizedEmail },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "User with this email already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Register Error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
 };
 
+// ======================================================
+// TOGGLE EMPLOYEE STATUS
+// ======================================================
 
 const toggleEmployeeStatus = async (req, res) => {
   try {
@@ -85,8 +100,34 @@ const toggleEmployeeStatus = async (req, res) => {
       }
     }
 
+    const previousStatus = employee.isActive;
+
+    // Fetch the admin performing the action
+    const actor = await User.findByPk(req.user.id, {
+      attributes: ["id", "name", "email", "role"],
+    });
+
     employee.isActive = !employee.isActive;
     await employee.save();
+
+    await writeAuditLog({
+      req,
+      user: actor,
+      action: employee.isActive
+        ? "EMPLOYEE_ACTIVATED"
+        : "EMPLOYEE_DEACTIVATED",
+      module: "EMPLOYEES",
+      entityId: employee.id,
+      description: `${employee.name} was ${
+        employee.isActive ? "activated" : "deactivated"
+      }`,
+      oldValues: {
+        isActive: previousStatus,
+      },
+      newValues: {
+        isActive: employee.isActive,
+      },
+    });
 
     return res.status(200).json({
       success: true,
@@ -96,7 +137,7 @@ const toggleEmployeeStatus = async (req, res) => {
       isActive: employee.isActive,
     });
   } catch (error) {
-    console.error("Toggle Employee Status Error:", error);
+    console.error("Toggle Employee Status Error:", error.message);
 
     return res.status(500).json({
       success: false,
@@ -105,114 +146,133 @@ const toggleEmployeeStatus = async (req, res) => {
   }
 };
 
-
-
-// Login User Controller
+// ======================================================
+// LOGIN USER WITH AUDIT LOGGING
+// ======================================================
 
 const loginUser = async (req, res) => {
-    try {
-        console.log("========== LOGIN START ==========");
+  try {
+    const { email, password } = req.body;
 
-        const { email, password } = req.body;
-
-        console.log("Email:", email);
-        console.log("Password received:", !!password);
-
-        // Validate input
-        if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "Email and Password are required",
-            });
-        }
-
-        // Find user
-        const user = await User.findOne({
-            where: { email },
-        });
-
-        console.log("User found:", !!user);
-
-        if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: "Invalid Email or Password",
-            });
-        }
-
-        console.log("User ID:", user.id);
-        console.log("User role:", user.role);
-        console.log("Account active:", user.isActive);
-        console.log("Password hash exists:", !!user.password);
-
-        if (!user.isActive) {
-            return res.status(403).json({
-                success: false,
-                message: "Your Account is Inactive",
-            });
-        }
-
-        // Compare password
-        const isPasswordValid = await bcrypt.compare(
-            password,
-            user.password
-        );
-
-        console.log("Password valid:", isPasswordValid);
-
-        if (!isPasswordValid) {
-            return res.status(401).json({
-                success: false,
-                message: "Invalid Email or Password",
-            });
-        }
-
-        // Check JWT secret
-        console.log("JWT secret exists:", !!process.env.JWT_SECRET);
-
-        if (!process.env.JWT_SECRET) {
-            throw new Error("JWT_SECRET is missing");
-        }
-
-        // Generate JWT
-        const token = jwt.sign(
-            {
-                id: user.id,
-                role: user.role,
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-            }
-        );
-
-        console.log("JWT generated successfully");
-
-        return res.status(200).json({
-            success: true,
-            message: "Login Successfully",
-            token,
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            },
-        });
-
-    } catch (error) {
-        console.error("LOGIN ERROR:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message,
-        });
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and Password are required",
+      });
     }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await User.findOne({
+      where: { email: normalizedEmail },
+    });
+
+    // User not found
+    if (!user) {
+      await writeAuditLog({
+        req,
+        user: { email: normalizedEmail },
+        action: "LOGIN_FAILED",
+        module: "AUTHENTICATION",
+        description: "Login failed: Invalid email or password",
+        status: "FAILED",
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Email or Password",
+      });
+    }
+
+    // Inactive account
+    if (!user.isActive) {
+      await writeAuditLog({
+        req,
+        user,
+        action: "LOGIN_FAILED",
+        module: "AUTHENTICATION",
+        description: "Login attempted on an inactive account",
+        status: "FAILED",
+      });
+
+      return res.status(403).json({
+        success: false,
+        message: "Your Account is Inactive",
+      });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      await writeAuditLog({
+        req,
+        user,
+        action: "LOGIN_FAILED",
+        module: "AUTHENTICATION",
+        description: "Login failed: Invalid email or password",
+        status: "FAILED",
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Email or Password",
+      });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is missing");
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      {
+        id: user.id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+      }
+    );
+
+    // Successful login audit
+    await writeAuditLog({
+      req,
+      user,
+      action: "LOGIN",
+      module: "AUTHENTICATION",
+      description: `${user.name} logged in successfully`,
+      status: "SUCCESS",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login Successfully",
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("LOGIN ERROR:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
 };
 
-
-
+// ======================================================
+// CREATE EMPLOYEE
+// ======================================================
 
 const createEmployee = async (req, res) => {
   let transaction;
@@ -241,6 +301,7 @@ const createEmployee = async (req, res) => {
 
     if (!name?.trim() || !email?.trim() || !password) {
       await transaction.rollback();
+
       return res.status(400).json({
         success: false,
         message: "Name, email and password are required",
@@ -249,6 +310,7 @@ const createEmployee = async (req, res) => {
 
     if (!["manager", "staff"].includes(role)) {
       await transaction.rollback();
+
       return res.status(400).json({
         success: false,
         message: "Role must be manager or staff",
@@ -257,6 +319,7 @@ const createEmployee = async (req, res) => {
 
     if (password.length < 8) {
       await transaction.rollback();
+
       return res.status(400).json({
         success: false,
         message: "Password must be at least 8 characters",
@@ -270,6 +333,7 @@ const createEmployee = async (req, res) => {
 
     if (!admin || admin.role !== "admin" || !admin.isActive) {
       await transaction.rollback();
+
       return res.status(403).json({
         success: false,
         message: "Active admin access required",
@@ -286,6 +350,7 @@ const createEmployee = async (req, res) => {
 
     if (existingEmail) {
       await transaction.rollback();
+
       return res.status(409).json({
         success: false,
         message: "Email is already registered",
@@ -300,6 +365,7 @@ const createEmployee = async (req, res) => {
 
       if (existingCode) {
         await transaction.rollback();
+
         return res.status(409).json({
           success: false,
           message: "Employee code already exists",
@@ -317,6 +383,7 @@ const createEmployee = async (req, res) => {
 
     if (activeCount >= 50) {
       await transaction.rollback();
+
       return res.status(403).json({
         success: false,
         message: "Maximum limit of 50 active employees reached",
@@ -350,6 +417,24 @@ const createEmployee = async (req, res) => {
 
     await transaction.commit();
 
+    await writeAuditLog({
+      req,
+      user: admin,
+      action: "EMPLOYEE_CREATED",
+      module: "EMPLOYEES",
+      entityId: employee.id,
+      description: `Created employee: ${employee.name}`,
+      newValues: {
+        employeeCode: employee.employeeCode,
+        name: employee.name,
+        email: employee.email,
+        role: employee.role,
+        designation: employee.designation,
+        department: employee.department,
+        isActive: employee.isActive,
+      },
+    });
+
     return res.status(201).json({
       success: true,
       message: "Employee created successfully",
@@ -367,7 +452,7 @@ const createEmployee = async (req, res) => {
       await transaction.rollback();
     }
 
-    console.error("Create Employee Error:", error);
+    console.error("Create Employee Error:", error.message);
 
     return res.status(500).json({
       success: false,
@@ -376,8 +461,9 @@ const createEmployee = async (req, res) => {
   }
 };
 
-
-
+// ======================================================
+// GET MY PROFILE
+// ======================================================
 
 const getMyProfile = async (req, res) => {
   try {
@@ -416,7 +502,8 @@ const getMyProfile = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error("Get Profile Error:", error);
+    console.error("Get Profile Error:", error.message);
+
     return res.status(500).json({
       success: false,
       message: "Unable to fetch profile",
@@ -424,6 +511,9 @@ const getMyProfile = async (req, res) => {
   }
 };
 
+// ======================================================
+// UPDATE MY PROFILE WITH AUDIT LOGGING
+// ======================================================
 
 const updateMyProfile = async (req, res) => {
   try {
@@ -461,7 +551,17 @@ const updateMyProfile = async (req, res) => {
       });
     }
 
-    // Update only allowed personal fields
+    // Capture old values before updating
+    const oldProfileValues = {
+      name: user.name,
+      phone: user.phone,
+      address: user.address,
+      city: user.city,
+      state: user.state,
+      pincode: user.pincode,
+      emergencyContact: user.emergencyContact,
+    };
+
     await user.update({
       name: name.trim(),
       phone: phone || null,
@@ -470,6 +570,26 @@ const updateMyProfile = async (req, res) => {
       state: state || null,
       pincode: pincode || null,
       emergencyContact: emergencyContact || null,
+    });
+
+    // Profile audit
+    await writeAuditLog({
+      req,
+      user,
+      action: "PROFILE_UPDATED",
+      module: "PROFILE",
+      entityId: user.id,
+      description: `${user.name} updated their profile`,
+      oldValues: oldProfileValues,
+      newValues: {
+        name: user.name,
+        phone: user.phone,
+        address: user.address,
+        city: user.city,
+        state: user.state,
+        pincode: user.pincode,
+        emergencyContact: user.emergencyContact,
+      },
     });
 
     return res.status(200).json({
@@ -489,7 +609,8 @@ const updateMyProfile = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Update Profile Error:", error);
+    console.error("Update Profile Error:", error.message);
+
     return res.status(500).json({
       success: false,
       message: "Unable to update profile",
@@ -497,6 +618,9 @@ const updateMyProfile = async (req, res) => {
   }
 };
 
+// ======================================================
+// CHANGE PASSWORD WITH AUDIT LOGGING
+// ======================================================
 
 const changePassword = async (req, res) => {
   try {
@@ -531,6 +655,16 @@ const changePassword = async (req, res) => {
     );
 
     if (!isValid) {
+      await writeAuditLog({
+        req,
+        user,
+        action: "PASSWORD_CHANGE_FAILED",
+        module: "AUTHENTICATION",
+        entityId: user.id,
+        description: `${user.name} entered an incorrect current password`,
+        status: "FAILED",
+      });
+
       return res.status(400).json({
         success: false,
         message: "Current password is incorrect",
@@ -540,18 +674,34 @@ const changePassword = async (req, res) => {
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
+    // Never include password or password hash in audit values
+    await writeAuditLog({
+      req,
+      user,
+      action: "PASSWORD_CHANGED",
+      module: "AUTHENTICATION",
+      entityId: user.id,
+      description: `${user.name} changed their password`,
+      status: "SUCCESS",
+    });
+
     return res.status(200).json({
       success: true,
       message: "Password changed successfully",
     });
   } catch (error) {
-    console.error("Change Password Error:", error);
+    console.error("Change Password Error:", error.message);
+
     return res.status(500).json({
       success: false,
       message: "Unable to change password",
     });
   }
 };
+
+// ======================================================
+// UPDATE EMPLOYEE WITH AUDIT LOGGING
+// ======================================================
 
 const updateEmployee = async (req, res) => {
   try {
@@ -639,7 +789,16 @@ const updateEmployee = async (req, res) => {
       }
     }
 
-    // Update employee details
+    // Capture old values before updating
+    const oldEmployeeValues = {
+      employeeCode: employee.employeeCode,
+      name: employee.name,
+      email: employee.email,
+      role: employee.role,
+      designation: employee.designation,
+      department: employee.department,
+    };
+
     await employee.update({
       employeeCode: normalizedCode,
       name: name.trim(),
@@ -658,6 +817,29 @@ const updateEmployee = async (req, res) => {
       salary: salary === "" || salary == null ? null : salary,
     });
 
+    // Fetch admin actor details
+    const actor = await User.findByPk(req.user.id, {
+      attributes: ["id", "name", "email", "role"],
+    });
+
+    await writeAuditLog({
+      req,
+      user: actor,
+      action: "EMPLOYEE_UPDATED",
+      module: "EMPLOYEES",
+      entityId: employee.id,
+      description: `Updated employee: ${employee.name}`,
+      oldValues: oldEmployeeValues,
+      newValues: {
+        employeeCode: employee.employeeCode,
+        name: employee.name,
+        email: employee.email,
+        role: employee.role,
+        designation: employee.designation,
+        department: employee.department,
+      },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Employee updated successfully",
@@ -672,7 +854,7 @@ const updateEmployee = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Update Employee Error:", error);
+    console.error("Update Employee Error:", error.message);
 
     return res.status(500).json({
       success: false,
@@ -681,7 +863,9 @@ const updateEmployee = async (req, res) => {
   }
 };
 
-
+// ======================================================
+// GET EMPLOYEES
+// ======================================================
 
 const getEmployees = async (req, res) => {
   try {
@@ -689,26 +873,26 @@ const getEmployees = async (req, res) => {
       where: {
         role: ["manager", "staff"],
       },
-     attributes: [
-  "id",
-  "employeeCode",
-  "name",
-  "email",
-  "role",
-  "phone",
-  "address",
-  "city",
-  "state",
-  "pincode",
-  "dateOfBirth",
-  "emergencyContact",
-  "joiningDate",
-  "designation",
-  "department",
-  "salary",
-  "isActive",
-  "createdAt",
-],
+      attributes: [
+        "id",
+        "employeeCode",
+        "name",
+        "email",
+        "role",
+        "phone",
+        "address",
+        "city",
+        "state",
+        "pincode",
+        "dateOfBirth",
+        "emergencyContact",
+        "joiningDate",
+        "designation",
+        "department",
+        "salary",
+        "isActive",
+        "createdAt",
+      ],
       order: [["createdAt", "DESC"]],
     });
 
@@ -724,7 +908,7 @@ const getEmployees = async (req, res) => {
       employees,
     });
   } catch (error) {
-    console.error("Get Employees Error:", error);
+    console.error("Get Employees Error:", error.message);
 
     return res.status(500).json({
       success: false,
@@ -733,9 +917,18 @@ const getEmployees = async (req, res) => {
   }
 };
 
+// ======================================================
+// EXPORT CONTROLLERS
+// ======================================================
 
 export {
-     registerUser, loginUser,getMyProfile,updateMyProfile,changePassword,createEmployee,getEmployees,toggleEmployeeStatus,updateEmployee
-    };
-
-
+  registerUser,
+  loginUser,
+  getMyProfile,
+  updateMyProfile,
+  changePassword,
+  createEmployee,
+  getEmployees,
+  toggleEmployeeStatus,
+  updateEmployee,
+};

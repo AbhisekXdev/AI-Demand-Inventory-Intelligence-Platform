@@ -1,0 +1,778 @@
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  Search,
+  RefreshCw,
+  Download,
+  ShieldCheck,
+  ShieldAlert,
+  Clock3,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  X,
+  CalendarDays,
+  Filter,
+  User,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  ClipboardList,
+} from "lucide-react";
+import { toast } from "react-toastify";
+import api from "../services/api";
+
+const PAGE_SIZE = 10;
+
+const inputClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+
+const getLogs = (response) => {
+  const data = response?.data ?? response;
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.logs)) return data.logs;
+  if (Array.isArray(data?.auditLogs)) return data.auditLogs;
+  if (Array.isArray(data?.data?.logs)) return data.data.logs;
+  if (Array.isArray(data?.data)) return data.data;
+
+  return [];
+};
+
+const getTotal = (response, logs) => {
+  const data = response?.data ?? response;
+
+  return Number(
+    data?.total ??
+    data?.count ??
+    data?.pagination?.total ??
+    data?.data?.total ??
+    logs.length
+  );
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatValue = (value) => {
+  if (value === null || value === undefined) return "—";
+
+  if (typeof value === "object") {
+    return JSON.stringify(value, null, 2);
+  }
+
+  return String(value);
+};
+
+const getStatus = (log) =>
+  String(log?.status || "SUCCESS").toUpperCase();
+
+const statusStyles = {
+  SUCCESS: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  FAILED: "bg-red-50 text-red-700 border-red-200",
+};
+
+function StatCard({ title, value, subtitle, icon: Icon, color }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-500">{title}</p>
+          <h3 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
+            {value.toLocaleString("en-IN")}
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+        </div>
+        <div className={`rounded-xl p-3 ${color}`}>
+          <Icon size={21} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const value = getStatus({ status });
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+        statusStyles[value] || statusStyles.SUCCESS
+      }`}
+    >
+      {value === "FAILED" ? (
+        <XCircle size={12} />
+      ) : (
+        <CheckCircle2 size={12} />
+      )}
+      {value}
+    </span>
+  );
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:justify-between">
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      <span className="break-all text-sm font-medium text-slate-700 sm:max-w-[65%] sm:text-right">
+        {value || "—"}
+      </span>
+    </div>
+  );
+}
+
+function ValuePanel({ title, value, type }) {
+  return (
+    <div
+      className={`min-w-0 rounded-xl border p-4 ${
+        type === "old"
+          ? "border-amber-200 bg-amber-50/50"
+          : "border-emerald-200 bg-emerald-50/50"
+      }`}
+    >
+      <h4
+        className={`mb-3 text-sm font-bold ${
+          type === "old" ? "text-amber-800" : "text-emerald-800"
+        }`}
+      >
+        {title}
+      </h4>
+      <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-slate-700">
+        {value ? formatValue(value) : "No data available"}
+      </pre>
+    </div>
+  );
+}
+
+export default function AuditLogs() {
+  const [logs, setLogs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+
+  const [search, setSearch] = useState("");
+  const [action, setAction] = useState("");
+  const [module, setModule] = useState("");
+  const [status, setStatus] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const loadLogs = useCallback(async (showLoader = true) => {
+    try {
+      if (showLoader) setLoading(true);
+      else setRefreshing(true);
+
+      const params = {
+        page,
+        limit: PAGE_SIZE,
+      };
+
+      if (search.trim()) params.search = search.trim();
+      if (action) params.action = action;
+      if (module) params.module = module;
+      if (status) params.status = status;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const response = await api.get("/audit-logs", { params });
+      const result = getLogs(response.data);
+
+      setLogs(result);
+      setTotal(getTotal(response.data, result));
+    } catch (error) {
+      console.error("Audit Logs API Error:", error);
+
+      toast.error(
+        error.response?.data?.message ||
+          error.message ||
+          "Unable to load audit logs"
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [page, search, action, module, status, startDate, endDate]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadLogs();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [loadLogs]);
+
+  const successfulCount = useMemo(
+    () => logs.filter((item) => getStatus(item) === "SUCCESS").length,
+    [logs]
+  );
+
+  const failedCount = useMemo(
+    () => logs.filter((item) => getStatus(item) === "FAILED").length,
+    [logs]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const openDetails = async (log) => {
+    setSelectedLog(log);
+
+    if (!log?.id) return;
+
+    try {
+      setDetailLoading(true);
+      const response = await api.get(`/audit-logs/${log.id}`);
+      const data = response.data?.log ??
+        response.data?.auditLog ??
+        response.data?.data?.log ??
+        response.data?.data ??
+        response.data;
+
+      if (data && typeof data === "object") {
+        setSelectedLog(data);
+      }
+    } catch (error) {
+      console.error("Audit Log Detail Error:", error);
+      // Keep the row data available if detail endpoint fails.
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setAction("");
+    setModule("");
+    setStatus("");
+    setStartDate("");
+    setEndDate("");
+    setPage(1);
+  };
+
+  const exportCSV = () => {
+    if (!logs.length) {
+      toast.info("There are no audit records to export");
+      return;
+    }
+
+    const columns = [
+      "id",
+      "userName",
+      "userEmail",
+      "userRole",
+      "action",
+      "module",
+      "entityId",
+      "description",
+      "status",
+      "ipAddress",
+      "createdAt",
+    ];
+
+    const escapeCSV = (value) =>
+      `"${String(value ?? "").replaceAll('"', '""')}"`;
+
+    const rows = [
+      columns.join(","),
+      ...logs.map((log) =>
+        columns.map((key) => escapeCSV(log[key])).join(",")
+      ),
+    ];
+
+    const blob = new Blob(
+      ["\uFEFF" + rows.join("\n")],
+      { type: "text/csv;charset=utf-8;" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `audit-logs-page-${page}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+    toast.success("Current page exported successfully");
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Page heading */}
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600">
+            <ShieldCheck size={15} />
+            Administration
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Audit Logs
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Monitor user activities and track changes across your platform.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => loadLogs(false)}
+            disabled={refreshing}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            <RefreshCw
+              size={16}
+              className={refreshing ? "animate-spin" : ""}
+            />
+            Refresh
+          </button>
+
+          <button
+            onClick={exportCSV}
+            disabled={!logs.length}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download size={16} />
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Total Activities"
+          value={total}
+          subtitle="Matching audit records"
+          icon={Activity}
+          color="bg-blue-50 text-blue-600"
+        />
+        <StatCard
+          title="Successful"
+          value={successfulCount}
+          subtitle="On this page"
+          icon={ShieldCheck}
+          color="bg-emerald-50 text-emerald-600"
+        />
+        <StatCard
+          title="Failed"
+          value={failedCount}
+          subtitle="On this page"
+          icon={ShieldAlert}
+          color="bg-red-50 text-red-600"
+        />
+        <StatCard
+          title="Current Page"
+          value={page}
+          subtitle={`Of ${totalPages} pages`}
+          icon={Clock3}
+          color="bg-violet-50 text-violet-600"
+        />
+      </div>
+
+      {/* Filters */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Filter size={17} className="text-slate-500" />
+            <h2 className="font-bold text-slate-800">Activity Filters</h2>
+          </div>
+          <button
+            onClick={clearFilters}
+            className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+          >
+            Clear all filters
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="relative">
+            <Search
+              size={17}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search user, email or activity..."
+              className={`${inputClass} pl-10`}
+            />
+          </div>
+
+          <select
+            value={action}
+            onChange={(event) => {
+              setAction(event.target.value);
+              setPage(1);
+            }}
+            className={inputClass}
+          >
+            <option value="">All Actions</option>
+            <option value="LOGIN">Login</option>
+            <option value="LOGIN_FAILED">Failed Login</option>
+            <option value="LOGOUT">Logout</option>
+            <option value="CREATE">Create</option>
+            <option value="UPDATE">Update</option>
+            <option value="DELETE">Delete</option>
+            <option value="EMPLOYEE_ACTIVATED">Employee Activated</option>
+            <option value="EMPLOYEE_DEACTIVATED">Employee Deactivated</option>
+          </select>
+
+          <select
+            value={module}
+            onChange={(event) => {
+              setModule(event.target.value);
+              setPage(1);
+            }}
+            className={inputClass}
+          >
+            <option value="">All Modules</option>
+            <option value="AUTHENTICATION">Authentication</option>
+            <option value="EMPLOYEES">Employees</option>
+            <option value="PRODUCTS">Products</option>
+            <option value="INVENTORY">Inventory</option>
+            <option value="SUPPLIERS">Suppliers</option>
+            <option value="PURCHASE_ORDERS">Purchase Orders</option>
+          </select>
+
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+            className={inputClass}
+          >
+            <option value="">All Statuses</option>
+            <option value="SUCCESS">Successful</option>
+            <option value="FAILED">Failed</option>
+          </select>
+
+          <div className="relative">
+            <CalendarDays
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="date"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(event) => {
+                setStartDate(event.target.value);
+                setPage(1);
+              }}
+              className={`${inputClass} pl-10`}
+              aria-label="Start date"
+            />
+          </div>
+
+          <div className="relative">
+            <CalendarDays
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(event) => {
+                setEndDate(event.target.value);
+                setPage(1);
+              }}
+              className={`${inputClass} pl-10`}
+              aria-label="End date"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Activity table */}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-4 sm:px-5">
+          <div>
+            <h2 className="font-bold text-slate-900">Activity History</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {total.toLocaleString("en-IN")} matching records
+            </p>
+          </div>
+          <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+            Page {page} of {totalPages}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-500">
+            <Loader2 size={20} className="animate-spin text-blue-600" />
+            Loading audit activities...
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="flex min-h-72 flex-col items-center justify-center px-5 text-center">
+            <div className="rounded-2xl bg-slate-100 p-4 text-slate-400">
+              <ClipboardList size={30} />
+            </div>
+            <h3 className="mt-4 font-bold text-slate-800">
+              No audit activities found
+            </h3>
+            <p className="mt-1 max-w-sm text-sm text-slate-500">
+              Try changing your filters or refresh to check for new activity.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[950px] text-left">
+                <thead className="bg-slate-50">
+                  <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="px-5 py-3">User</th>
+                    <th className="px-5 py-3">Action</th>
+                    <th className="px-5 py-3">Module</th>
+                    <th className="px-5 py-3">Description</th>
+                    <th className="px-5 py-3">Date & Time</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3 text-right">Details</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {logs.map((log, index) => (
+                    <tr
+                      key={log.id ?? index}
+                      className="transition hover:bg-slate-50/80"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-bold text-blue-700">
+                            {(log.userName || log.userEmail || "U")
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="max-w-44 truncate text-sm font-semibold text-slate-800">
+                              {log.userName || "Unknown User"}
+                            </p>
+                            <p className="max-w-44 truncate text-xs text-slate-500">
+                              {log.userEmail || "—"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                          {(log.action || "UNKNOWN").replaceAll("_", " ")}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-medium text-slate-600">
+                        {(log.module || "—").replaceAll("_", " ")}
+                      </td>
+
+                      <td className="max-w-64 px-5 py-4">
+                        <p className="truncate text-sm text-slate-600">
+                          {log.description || "—"}
+                        </p>
+                        {log.entityId && (
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            Entity ID: {log.entityId}
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-500">
+                        {formatDate(log.createdAt)}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <StatusBadge status={log.status} />
+                      </td>
+
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          onClick={() => openDetails(log)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          <Eye size={14} />
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <p className="text-xs text-slate-500">
+                Showing{" "}
+                {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}– 
+                {Math.min(page * PAGE_SIZE, total)} of {total} records
+              </p>
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => current - 1)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft size={15} />
+                  Previous
+                </button>
+
+                <span className="px-2 text-xs font-bold text-slate-700">
+                  {page} / {totalPages}
+                </span>
+
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((current) => current + 1)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Activity detail modal */}
+      {selectedLog && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-sm sm:p-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedLog(null);
+            }
+          }}
+        >
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600">
+                  <FileText size={14} />
+                  Activity Details
+                </div>
+                <h3 className="mt-1 text-lg font-bold text-slate-900">
+                  {(selectedLog.action || "Activity").replaceAll("_", " ")}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Audit record #{selectedLog.id || "—"}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close details"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-80px)] space-y-5 overflow-y-auto p-5 sm:p-6">
+              {detailLoading && (
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Loader2 size={15} className="animate-spin" />
+                  Loading full activity details...
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div>
+                  <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800">
+                    <User size={15} className="text-blue-600" />
+                    User Information
+                  </h4>
+                  <div className="rounded-xl border border-slate-100 px-4">
+                    <DetailRow label="Name" value={selectedLog.userName} />
+                    <DetailRow label="Email" value={selectedLog.userEmail} />
+                    <DetailRow label="Role" value={selectedLog.userRole} />
+                    <DetailRow label="User ID" value={selectedLog.userId} />
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800">
+                    <Activity size={15} className="text-blue-600" />
+                    Activity Information
+                  </h4>
+                  <div className="rounded-xl border border-slate-100 px-4">
+                    <DetailRow label="Action" value={selectedLog.action} />
+                    <DetailRow label="Module" value={selectedLog.module} />
+                    <DetailRow label="Entity ID" value={selectedLog.entityId} />
+                    <DetailRow label="Status" value={getStatus(selectedLog)} />
+                    <DetailRow label="Date" value={formatDate(selectedLog.createdAt)} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="mb-2 text-sm font-bold text-slate-800">
+                  Description
+                </h4>
+                <div className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                  {selectedLog.description || "No description available"}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <ValuePanel
+                  title="Previous Values"
+                  value={selectedLog.oldValues}
+                  type="old"
+                />
+                <ValuePanel
+                  title="New Values"
+                  value={selectedLog.newValues}
+                  type="new"
+                />
+              </div>
+
+              <div>
+                <h4 className="mb-2 text-sm font-bold text-slate-800">
+                  Request Information
+                </h4>
+                <div className="rounded-xl border border-slate-100 px-4">
+                  <DetailRow label="IP Address" value={selectedLog.ipAddress} />
+                  <DetailRow label="User Agent" value={selectedLog.userAgent} />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setSelectedLog(null)}
+                  className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

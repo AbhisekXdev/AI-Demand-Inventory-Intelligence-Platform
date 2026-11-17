@@ -40,6 +40,8 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 import intelligenceRoutes from "./routes/intelligence.routes.js";
 import reportsRoutes from "./routes/reports.routes.js";
 
+import AuditLog from "./models/AuditLog.js";
+import auditLogRoutes from "./routes/auditLog.routes.js";
 const app = express();
 
 // Security
@@ -86,6 +88,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/intelligence", intelligenceRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
 
 
 
@@ -138,6 +141,8 @@ const startServer = async () => {
         console.log("Stock Movement Table Synchronized");
         await Demand.sync();
         console.log("Demand Table Synchronized");
+        await AuditLog.sync();
+        console.log("Audit Logs Table Synchronized");
 
 
         app.listen(PORT, () => {
