@@ -1,24 +1,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Package,
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  X,
-  RefreshCw,
-  Filter,
-  AlertCircle,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Tag,
+  Package, Plus, Search, Pencil, Trash2, X, RefreshCw,
+  Filter, AlertCircle, CheckCircle, ChevronLeft, ChevronRight,
+  Tag, TrendingUp, Boxes, IndianRupee, Clock3, Sparkles,
+  ArrowUpRight, Layers3, SlidersHorizontal
 } from "lucide-react";
 import { toast } from "react-toastify";
-
 import { getCategories } from "../services/categoryService";
-
 import {
   getProducts,
   createProduct,
@@ -50,11 +39,9 @@ const formatCurrency = (value) =>
 export default function Products() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -66,102 +53,79 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState(initialForm);
 
-  // ==========================================
-  // Load Products
-  // ==========================================
+  // Load products
+  const loadProducts = useCallback(async (showLoader = true, showSuccess = false) => {
+    try {
+      if (showLoader) setLoading(true);
+      else setRefreshing(true);
 
-  const loadProducts = useCallback(
-    async (showLoader = true, showSuccess = false) => {
-      try {
-        if (showLoader) {
-          setLoading(true);
-        } else {
-          setRefreshing(true);
-        }
+      const response = await getProducts();
 
-        const [response] = await Promise.all([
-          getProducts(),
-          new Promise((resolve) => setTimeout(resolve, 700)),
-        ]);
+      const result =
+        response?.products ??
+        response?.data?.products ??
+        response?.data ??
+        response;
 
-        const result =
-          response?.products ??
-          response?.data?.products ??
-          response?.data ??
-          response;
-
-        if (!Array.isArray(result)) {
-          throw new Error("Invalid products response from server");
-        }
-
-        setProducts(result);
-
-        if (showSuccess) {
-          toast.success("Products refreshed successfully");
-        }
-      } catch (error) {
-        console.error("Products API Error:", error);
-
-        toast.error(
-          error.response?.data?.message ||
-            error.message ||
-            "Unable to load products"
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+      if (!Array.isArray(result)) {
+        throw new Error("Invalid products response from server");
       }
-    },
-    []
-  );
 
-  // ==========================================
-  // Load Categories
-  // ==========================================
+      setProducts(result);
 
- const loadCategories = useCallback(async () => {
-  try {
-    setCategoriesLoading(true);
-
-    const response = await getCategories();
-
-    const result =
-      response?.categories ??
-      response?.data?.categories ??
-      response?.data ??
-      response;
-
-    if (!Array.isArray(result)) {
-      throw new Error("Invalid categories response");
+      if (showSuccess) toast.success("Product catalog refreshed");
+    } catch (error) {
+      console.error("Products API Error:", error);
+      toast.error(
+        error.response?.data?.message ||
+        error.message ||
+        "Unable to load products"
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  }, []);
 
-    setCategories(result);
-  } catch (error) {
-    console.error("Categories API Error:", error);
+  // Load categories
+  const loadCategories = useCallback(async () => {
+    try {
+      setCategoriesLoading(true);
 
-    setCategories([]);
+      const response = await getCategories();
 
-    toast.error(
-      error.response?.data?.message ||
+      const result =
+        response?.categories ??
+        response?.data?.categories ??
+        response?.data ??
+        response;
+
+      if (!Array.isArray(result)) {
+        throw new Error("Invalid categories response");
+      }
+
+      setCategories(result);
+    } catch (error) {
+      console.error("Categories API Error:", error);
+      setCategories([]);
+      toast.error(
+        error.response?.data?.message ||
         error.message ||
         "Unable to load categories"
-    );
-  } finally {
-    setCategoriesLoading(false);
-  }
-}, []);
+      );
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadProducts();
     loadCategories();
   }, [loadProducts, loadCategories]);
 
-  // ==========================================
-  // Search and Filter
-  // ==========================================
-
+  // Search and filters
   const filteredProducts = useMemo(() => {
-    const searchText = search.trim().toLowerCase();
+    const text = search.trim().toLowerCase();
 
     return products.filter((product) => {
       const matchesSearch = [
@@ -169,7 +133,7 @@ export default function Products() {
         product.sku,
         product.description,
       ].some((value) =>
-        String(value ?? "").toLowerCase().includes(searchText)
+        String(value ?? "").toLowerCase().includes(text)
       );
 
       const matchesStatus =
@@ -180,10 +144,6 @@ export default function Products() {
       return matchesSearch && matchesStatus;
     });
   }, [products, search, statusFilter]);
-
-  // ==========================================
-  // Pagination
-  // ==========================================
 
   const totalPages = Math.max(
     1,
@@ -200,32 +160,35 @@ export default function Products() {
   }, [search, statusFilter]);
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
+    if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
 
-  // ==========================================
-  // Summary
-  // ==========================================
-
-  const activeCount = products.filter(
-    (product) => Boolean(product.isActive)
-  ).length;
-
+  // Statistics
+  const activeCount = products.filter((p) => Boolean(p.isActive)).length;
   const inactiveCount = products.length - activeCount;
 
   const categoryCount = new Set(
     products
-      .map((product) => product.categoryId)
+      .map((p) => p.categoryId)
       .filter((id) => id !== null && id !== undefined)
       .map(String)
   ).size;
 
-  // ==========================================
-  // Modal
-  // ==========================================
+  const totalInventoryValue = products.reduce(
+    (sum, product) =>
+      sum + (Number(product.price) || 0),
+    0
+  );
 
+  // Category helper
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(
+      (item) => String(item.id) === String(categoryId)
+    );
+    return category?.name || "Uncategorized";
+  };
+
+  // Modal handlers
   const openAddModal = () => {
     setEditingProduct(null);
     setForm(initialForm);
@@ -252,15 +215,10 @@ export default function Products() {
 
   const closeModal = () => {
     if (saving) return;
-
     setModalOpen(false);
     setEditingProduct(null);
     setForm(initialForm);
   };
-
-  // ==========================================
-  // Form Change
-  // ==========================================
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
@@ -271,10 +229,7 @@ export default function Products() {
     }));
   };
 
-  // ==========================================
-  // Create / Update Product
-  // ==========================================
-
+  // Create and update
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -319,7 +274,6 @@ export default function Products() {
       setSaving(true);
 
       if (editingProduct) {
-        // Existing backend update controller supports these fields.
         const updatePayload = {
           name: form.name.trim(),
           sku: form.sku.trim(),
@@ -331,10 +285,8 @@ export default function Products() {
         };
 
         await updateProduct(editingProduct.id, updatePayload);
-
         toast.success("Product updated successfully");
       } else {
-        // Existing create controller accepts these fields.
         const createPayload = {
           name: form.name.trim(),
           sku: form.sku.trim(),
@@ -348,31 +300,24 @@ export default function Products() {
         };
 
         await createProduct(createPayload);
-
         toast.success("Product created successfully");
       }
 
       setModalOpen(false);
       setEditingProduct(null);
       setForm(initialForm);
-
-      await loadProducts(true, false);
+      await loadProducts();
     } catch (error) {
       console.error("Save Product Error:", error);
-
       toast.error(
-        error.response?.data?.message ||
-          "Unable to save product"
+        error.response?.data?.message || "Unable to save product"
       );
     } finally {
       setSaving(false);
     }
   };
 
-  // ==========================================
-  // Delete / Deactivate Product
-  // ==========================================
-
+  // Deactivate product
   const handleDelete = async (product) => {
     const confirmed = window.confirm(
       `Are you sure you want to deactivate "${product.name}"?`
@@ -382,82 +327,66 @@ export default function Products() {
 
     try {
       setDeletingId(product.id);
-
       await deleteProduct(product.id);
-
       toast.success("Product deactivated successfully");
-
-      await loadProducts(true, false);
+      await loadProducts();
     } catch (error) {
       console.error("Delete Product Error:", error);
-
       toast.error(
-        error.response?.data?.message ||
-          "Unable to deactivate product"
+        error.response?.data?.message || "Unable to deactivate product"
       );
     } finally {
       setDeletingId(null);
     }
   };
 
-  // ==========================================
-  // Category Name
-  // ==========================================
-
-  const getCategoryName = (categoryId) => {
-    const category = categories.find(
-      (item) => String(item.id) === String(categoryId)
-    );
-
-    return category?.name || "Category unavailable";
-  };
-
-  // ==========================================
-  // UI
-  // ==========================================
-
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6">
+    <div className="product-page mx-auto max-w-[1600px] space-y-6">
 
-      {/* Header */}
-
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-blue-100 p-3 text-blue-600">
-            <Package size={25} />
+      {/* PAGE HEADER */}
+      <div className="product-enter flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+        <div className="flex items-start gap-4">
+          <div className="product-header-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-500 text-white shadow-lg shadow-indigo-200">
+            <Package size={27} />
           </div>
 
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-              Product Management
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Product Management
+              </h1>
+              <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+                Catalog
+              </span>
+            </div>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Manage your product catalog and product information
+            <p className="mt-1.5 text-sm text-slate-500">
+              Manage products, pricing, categories and product availability.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           <button
+            type="button"
             onClick={() => {
               loadProducts(false, true);
               loadCategories();
             }}
             disabled={loading || refreshing}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 disabled:opacity-50"
           >
             <RefreshCw
               size={17}
               className={refreshing ? "animate-spin" : ""}
             />
-
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
 
           <button
+            type="button"
             onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
           >
             <Plus size={18} />
             Add Product
@@ -465,85 +394,89 @@ export default function Products() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-
+      {/* KPI CARDS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           title="Total Products"
           value={products.length}
           icon={Package}
           color="blue"
+          subtitle="Products in catalog"
+          loading={loading}
         />
-
         <SummaryCard
           title="Active Products"
           value={activeCount}
           icon={CheckCircle}
           color="green"
+          subtitle="Available in catalog"
+          loading={loading}
         />
-
         <SummaryCard
           title="Inactive Products"
           value={inactiveCount}
           icon={AlertCircle}
           color="orange"
+          subtitle="Currently unavailable"
+          loading={loading}
         />
-
         <SummaryCard
           title="Categories Used"
           value={categoryCount}
-          icon={Tag}
+          icon={Layers3}
           color="purple"
+          subtitle="Categories represented"
+          loading={loading}
         />
       </div>
 
-      {/* Product Catalog */}
-
+      {/* CATALOG SECTION */}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-        {/* Search and Filter */}
+        {/* CATALOG HEADER */}
+        <div className="flex flex-col gap-4 border-b border-slate-100 bg-gradient-to-r from-white to-slate-50/70 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <Boxes size={20} />
+            </div>
 
-        <div className="flex flex-col gap-4 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-          <div>
-            <h2 className="font-bold text-slate-800">
-              Product Catalog
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Showing {filteredProducts.length} of {products.length} products
-            </p>
+            <div>
+              <h2 className="font-bold text-slate-900">
+                Product Catalog
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                {filteredProducts.length} results from {products.length} products
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 sm:w-64">
+            <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-50 sm:w-72">
               <Search size={17} className="shrink-0 text-slate-400" />
-
               <input
                 type="search"
                 placeholder="Search name, SKU or description..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="w-full bg-transparent text-sm outline-none"
+                className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
               />
-
               {search && (
                 <button
+                  type="button"
                   onClick={() => setSearch("")}
-                  className="text-xs font-medium text-blue-600"
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
                 >
                   Clear
                 </button>
               )}
             </div>
 
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 sm:w-44">
-              <Filter size={17} className="shrink-0 text-slate-400" />
-
+            <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 sm:w-44">
+              <SlidersHorizontal size={16} className="text-slate-400" />
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
-                className="w-full bg-transparent text-sm outline-none"
+                className="w-full bg-transparent text-sm text-slate-700 outline-none"
               >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
@@ -553,56 +486,50 @@ export default function Products() {
           </div>
         </div>
 
-        {/* Loading */}
-
+        {/* TABLE CONTENT */}
         {loading ? (
-          <div className="flex min-h-64 flex-col items-center justify-center gap-3">
-            <RefreshCw
-              className="animate-spin text-blue-600"
-              size={30}
-            />
-
-            <p className="text-sm text-slate-500">
-              Loading products...
-            </p>
+          <div className="space-y-3 p-5">
+            {[1, 2, 3, 4, 5].map((item) => (
+              <div
+                key={item}
+                className="h-16 animate-pulse rounded-xl bg-slate-100"
+              />
+            ))}
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="flex min-h-64 flex-col items-center justify-center px-5 text-center">
-            <div className="rounded-full bg-slate-100 p-4">
-              <Package size={35} className="text-slate-400" />
+          <div className="flex min-h-[340px] flex-col items-center justify-center px-5 text-center">
+            <div className="rounded-2xl bg-slate-100 p-5 text-slate-400">
+              <Package size={36} />
             </div>
-
-            <h3 className="mt-3 font-semibold text-slate-700">
+            <h3 className="mt-4 text-base font-bold text-slate-800">
               {products.length === 0
-                ? "No products available"
+                ? "Your catalog is empty"
                 : "No matching products"}
             </h3>
-
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 max-w-sm text-sm text-slate-500">
               {products.length === 0
-                ? "Start by adding your first product."
-                : "Try a different search or status filter."}
+                ? "Add your first product to start building your catalog."
+                : "Try another product name, SKU or status filter."}
             </p>
-
             {products.length === 0 && (
               <button
+                type="button"
                 onClick={openAddModal}
-                className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                className="mt-5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
               >
-                Add Your First Product
+                <Plus size={16} className="mr-1 inline" />
+                Add First Product
               </button>
             )}
           </div>
         ) : (
           <>
-            {/* Product Table */}
-
-            <div className="overflow-x-auto">
+            {/* DESKTOP TABLE */}
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[1050px] text-left text-sm">
-
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-5 py-4">Product</th>
+                <thead className="border-b border-slate-200 bg-slate-50/90">
+                  <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="px-6 py-4">Product Details</th>
                     <th className="px-5 py-4">SKU</th>
                     <th className="px-5 py-4">Category</th>
                     <th className="px-5 py-4">Selling Price</th>
@@ -614,47 +541,54 @@ export default function Products() {
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {paginatedProducts.map((product) => (
+                  {paginatedProducts.map((product, index) => (
                     <tr
                       key={product.id}
-                      className="transition hover:bg-slate-50"
+                      className="product-row group transition-colors hover:bg-indigo-50/40"
+                      style={{ animationDelay: `${index * 45}ms` }}
                     >
-                      <td className="px-5 py-4">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-                            <Package size={20} />
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-blue-50 text-indigo-600 transition group-hover:scale-105">
+                            <Package size={21} />
                           </div>
-
-                          <div className="max-w-56">
+                          <div className="max-w-[230px]">
                             <p className="truncate font-semibold text-slate-800">
                               {product.name}
                             </p>
-
-                            <p className="truncate text-xs text-slate-400">
-                              {product.description || "No description"}
+                            <p className="mt-1 truncate text-xs text-slate-400">
+                              {product.description || "No description added"}
                             </p>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 font-medium text-slate-600">
-                        {product.sku || "—"}
+                      <td className="px-5 py-4">
+                        <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-xs font-semibold text-slate-600">
+                          {product.sku || "—"}
+                        </span>
                       </td>
 
-                      <td className="px-5 py-4 text-slate-600">
-                        {getCategoryName(product.categoryId)}
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center gap-1.5 text-slate-600">
+                          <Tag size={14} className="text-slate-400" />
+                          {getCategoryName(product.categoryId)}
+                        </span>
                       </td>
 
-                      <td className="px-5 py-4 font-semibold text-slate-800">
+                      <td className="px-5 py-4 font-bold text-slate-800">
                         {formatCurrency(product.price)}
                       </td>
 
-                      <td className="px-5 py-4 text-slate-600">
+                      <td className="px-5 py-4 font-medium text-slate-600">
                         {formatCurrency(product.costPrice)}
                       </td>
 
                       <td className="px-5 py-4 text-slate-600">
-                        {Number(product.reorderLevel ?? 0)} units
+                        <span className="inline-flex items-center gap-1.5">
+                          <AlertCircle size={14} className="text-amber-500" />
+                          {Number(product.reorderLevel ?? 0)} units
+                        </span>
                       </td>
 
                       <td className="px-5 py-4">
@@ -663,28 +597,27 @@ export default function Products() {
 
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
-
-                          <button
+                          <ActionButton
+                            title="Edit product"
+                            color="blue"
                             onClick={() => openEditModal(product)}
                             disabled={deletingId === product.id}
-                            title="Edit product"
-                            className="rounded-lg bg-blue-50 p-2 text-blue-600 transition hover:bg-blue-100 disabled:opacity-40"
                           >
                             <Pencil size={16} />
-                          </button>
+                          </ActionButton>
 
-                          <button
+                          <ActionButton
+                            title="Deactivate product"
+                            color="red"
                             onClick={() => handleDelete(product)}
                             disabled={deletingId === product.id}
-                            title="Deactivate product"
-                            className="rounded-lg bg-red-50 p-2 text-red-600 transition hover:bg-red-100 disabled:opacity-40"
                           >
                             {deletingId === product.id ? (
                               <RefreshCw size={16} className="animate-spin" />
                             ) : (
                               <Trash2 size={16} />
                             )}
-                          </button>
+                          </ActionButton>
                         </div>
                       </td>
                     </tr>
@@ -693,42 +626,139 @@ export default function Products() {
               </table>
             </div>
 
-            {/* Pagination */}
+            {/* MOBILE PRODUCT CARDS */}
+            <div className="grid gap-3 p-3 md:hidden">
+              {paginatedProducts.map((product, index) => (
+                <article
+                  key={product.id}
+                  className="product-row rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  style={{ animationDelay: `${index * 45}ms` }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <Package size={21} />
+                    </div>
 
-            <div className="flex flex-col justify-between gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-sm font-bold text-slate-900">
+                        {product.name}
+                      </h3>
+                      <p className="mt-1 truncate font-mono text-xs text-slate-400">
+                        SKU: {product.sku || "—"}
+                      </p>
+                      <div className="mt-2">
+                        <StatusBadge active={Boolean(product.isActive)} />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1">
+                      <ActionButton
+                        title="Edit product"
+                        color="blue"
+                        onClick={() => openEditModal(product)}
+                      >
+                        <Pencil size={15} />
+                      </ActionButton>
+                      <ActionButton
+                        title="Deactivate product"
+                        color="red"
+                        onClick={() => handleDelete(product)}
+                        disabled={deletingId === product.id}
+                      >
+                        {deletingId === product.id ? (
+                          <RefreshCw size={15} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={15} />
+                        )}
+                      </ActionButton>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        Selling Price
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-slate-800">
+                        {formatCurrency(product.price)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        Cost Price
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700">
+                        {formatCurrency(product.costPrice)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        Category
+                      </p>
+                      <p className="mt-1 truncate text-xs font-medium text-slate-700">
+                        {getCategoryName(product.categoryId)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        Reorder Level
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-slate-700">
+                        {Number(product.reorderLevel ?? 0)} units
+                      </p>
+                    </div>
+                  </div>
+
+                  {product.description && (
+                    <p className="mt-3 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
+                      {product.description}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+
+            {/* PAGINATION */}
+            <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <p className="text-xs text-slate-500">
                 Showing{" "}
-                {(currentPage - 1) * PAGE_SIZE + 1} to{" "}
-                {Math.min(
-                  currentPage * PAGE_SIZE,
-                  filteredProducts.length
-                )}{" "}
-                of {filteredProducts.length} products
+                <span className="font-bold text-slate-800">
+                  {(currentPage - 1) * PAGE_SIZE + 1}
+                </span>
+                {" "}to{" "}
+                <span className="font-bold text-slate-800">
+                  {Math.min(currentPage * PAGE_SIZE, filteredProducts.length)}
+                </span>
+                {" "}of{" "}
+                <span className="font-bold text-slate-800">
+                  {filteredProducts.length}
+                </span>
+                {" "}products
               </p>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-3 sm:justify-end">
                 <button
+                  type="button"
                   disabled={currentPage === 1}
                   onClick={() =>
                     setCurrentPage((page) => Math.max(1, page - 1))
                   }
-                  className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <ChevronLeft size={17} />
                 </button>
 
-                <span className="px-3 text-sm font-semibold text-slate-700">
+                <span className="text-xs font-semibold text-slate-600">
                   Page {currentPage} of {totalPages}
                 </span>
 
                 <button
+                  type="button"
                   disabled={currentPage === totalPages}
                   onClick={() =>
-                    setCurrentPage((page) =>
-                      Math.min(totalPages, page + 1)
-                    )
+                    setCurrentPage((page) => Math.min(totalPages, page + 1))
                   }
-                  className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <ChevronRight size={17} />
                 </button>
@@ -738,40 +768,44 @@ export default function Products() {
         )}
       </section>
 
-      {/* Add / Edit Product Modal */}
-
+      {/* ADD / EDIT PRODUCT MODAL */}
       {modalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-6">
-          <div className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="product-modal fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6">
+          <div className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/50 bg-white shadow-2xl">
 
-            {/* Modal Header */}
-
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  {editingProduct ? "Edit Product" : "Add New Product"}
-                </h2>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Enter product information below
-                </p>
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-indigo-50/70 to-white px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                  {editingProduct ? <Pencil size={19} /> : <Plus size={20} />}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {editingProduct ? "Edit Product" : "Add New Product"}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {editingProduct
+                      ? "Update the selected product information"
+                      : "Enter the details to create a new catalog item"}
+                  </p>
+                </div>
               </div>
 
               <button
                 type="button"
                 onClick={closeModal}
                 disabled={saving}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40"
               >
                 <X size={21} />
               </button>
             </div>
 
-            {/* Product Form */}
-
             <form onSubmit={handleSubmit}>
-
               <div className="grid max-h-[65vh] grid-cols-1 gap-4 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
+
+                <div className="sm:col-span-2">
+                  <FormSection title="Basic Information" />
+                </div>
 
                 <FormField label="Product Name *">
                   <input
@@ -795,6 +829,72 @@ export default function Products() {
                     className="form-input"
                   />
                 </FormField>
+
+                <FormField label="Product Category *">
+                  <select
+                    name="categoryId"
+                    value={form.categoryId}
+                    onChange={handleChange}
+                    required
+                    disabled={categoriesLoading || Boolean(editingProduct)}
+                    className="form-input disabled:cursor-not-allowed disabled:bg-slate-100"
+                  >
+                    <option value="">
+                      {categoriesLoading
+                        ? "Loading categories..."
+                        : categories.length === 0
+                        ? "No categories available"
+                        : "Select Category"}
+                    </option>
+
+                    {categories
+                      .filter(
+                        (category) =>
+                          category.isActive ||
+                          String(category.id) === String(form.categoryId)
+                      )
+                      .map((category) => (
+                        <option key={category.id} value={String(category.id)}>
+                          {category.name}
+                        </option>
+                      ))}
+                  </select>
+                  {editingProduct && (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Category editing is not supported by the current backend update endpoint.
+                    </p>
+                  )}
+                </FormField>
+
+                <FormField label="Product Status">
+                  <label className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      checked={form.isActive}
+                      onChange={handleChange}
+                      className="h-4 w-4 accent-indigo-600"
+                    />
+                    Active Product
+                  </label>
+                </FormField>
+
+                <div className="sm:col-span-2">
+                  <FormField label="Description">
+                    <textarea
+                      name="description"
+                      value={form.description}
+                      onChange={handleChange}
+                      rows={3}
+                      placeholder="Enter product description..."
+                      className="form-input resize-none"
+                    />
+                  </FormField>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <FormSection title="Pricing & Inventory Settings" />
+                </div>
 
                 <FormField label="Selling Price (₹) *">
                   <input
@@ -848,85 +948,14 @@ export default function Products() {
                     className="form-input disabled:cursor-not-allowed disabled:bg-slate-100"
                   />
                 </FormField>
-
-                {/* Actual Categories from API */}
-
-                <FormField label="Product Category *">
-                  <select
-                    name="categoryId"
-                    value={form.categoryId}
-                    onChange={handleChange}
-                    required
-                    disabled={categoriesLoading || Boolean(editingProduct)}
-                    className="form-input disabled:cursor-not-allowed disabled:bg-slate-100"
-                  >
-                    <option value="">
-                      {categoriesLoading
-                        ? "Loading categories..."
-                        : categories.length === 0
-                        ? "No categories available"
-                        : "Select Category"}
-                    </option>
-
-                    {categories
-                      .filter(
-                        (category) =>
-                          category.isActive ||
-                          String(category.id) === String(form.categoryId)
-                      )
-                      .map((category) => (
-                        <option
-                          key={category.id}
-                          value={String(category.id)}
-                        >
-                          {category.name}
-                        </option>
-                      ))}
-                  </select>
-
-                  {editingProduct && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Category editing is not supported by the current backend update endpoint.
-                    </p>
-                  )}
-                </FormField>
-
-                <FormField label="Product Status">
-                  <label className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 px-3 text-sm">
-                    <input
-                      type="checkbox"
-                      name="isActive"
-                      checked={form.isActive}
-                      onChange={handleChange}
-                      className="h-4 w-4 accent-blue-600"
-                    />
-
-                    Active Product
-                  </label>
-                </FormField>
-
-                <div className="sm:col-span-2">
-                  <FormField label="Description">
-                    <textarea
-                      name="description"
-                      value={form.description}
-                      onChange={handleChange}
-                      rows={3}
-                      placeholder="Enter product description"
-                      className="form-input resize-none"
-                    />
-                  </FormField>
-                </div>
               </div>
 
-              {/* Modal Footer */}
-
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end sm:px-6">
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50/70 p-5 sm:flex-row sm:justify-end sm:px-6">
                 <button
                   type="button"
                   onClick={closeModal}
                   disabled={saving}
-                  className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -938,12 +967,9 @@ export default function Products() {
                     categoriesLoading ||
                     categories.length === 0
                   }
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {saving && (
-                    <RefreshCw size={16} className="animate-spin" />
-                  )}
-
+                  {saving && <RefreshCw size={16} className="animate-spin" />}
                   {saving
                     ? "Saving..."
                     : editingProduct
@@ -955,70 +981,203 @@ export default function Products() {
           </div>
         </div>
       )}
+
+      {/* PAGE ANIMATIONS */}
+      <style>{`
+        .product-page {
+          animation: productPageIn .5s ease-out both;
+        }
+
+        .product-enter {
+          animation: productPageIn .55s ease-out both;
+        }
+
+        .product-header-icon {
+          transition: transform .3s ease, box-shadow .3s ease;
+        }
+
+        .product-header-icon:hover {
+          transform: translateY(-3px) rotate(-4deg);
+          box-shadow: 0 15px 28px rgba(79,70,229,.22);
+        }
+
+        .product-row {
+          animation: productRowIn .35s ease-out both;
+        }
+
+        .product-modal {
+          animation: modalBackdrop .2s ease-out both;
+        }
+
+        .product-modal > div {
+          animation: modalEnter .25s ease-out both;
+        }
+
+        .form-input {
+          display: block;
+          width: 100%;
+          min-height: 44px;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          background: white;
+          padding: 10px 12px;
+          font-size: 13px;
+          color: #334155;
+          outline: none;
+          transition: border-color .2s, box-shadow .2s;
+        }
+
+        .form-input:focus {
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99,102,241,.10);
+        }
+
+        .form-input::placeholder {
+          color: #94a3b8;
+        }
+
+        @keyframes productPageIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes productRowIn {
+          from { opacity: 0; transform: translateY(7px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes modalBackdrop {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes modalEnter {
+          from { opacity: 0; transform: translateY(14px) scale(.985); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .product-page, .product-enter, .product-row,
+          .product-modal, .product-modal > div {
+            animation: none !important;
+          }
+
+          .product-header-icon {
+            transition: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
-// ==========================================
-// Summary Card
-// ==========================================
-
-function SummaryCard({ title, value, icon: Icon, color }) {
-  const colors = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-emerald-50 text-emerald-600",
-    orange: "bg-orange-50 text-orange-600",
-    purple: "bg-violet-50 text-violet-600",
+// KPI CARD
+function SummaryCard({ title, value, icon: Icon, color, subtitle, loading }) {
+  const styles = {
+    blue: {
+      icon: "bg-blue-50 text-blue-600",
+      accent: "bg-blue-500",
+      glow: "group-hover:shadow-blue-100",
+    },
+    green: {
+      icon: "bg-emerald-50 text-emerald-600",
+      accent: "bg-emerald-500",
+      glow: "group-hover:shadow-emerald-100",
+    },
+    orange: {
+      icon: "bg-orange-50 text-orange-600",
+      accent: "bg-orange-500",
+      glow: "group-hover:shadow-orange-100",
+    },
+    purple: {
+      icon: "bg-violet-50 text-violet-600",
+      accent: "bg-violet-500",
+      glow: "group-hover:shadow-violet-100",
+    },
   };
 
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-500">
-          {title}
-        </p>
+  const style = styles[color];
 
-        <div className={`rounded-xl p-3 ${colors[color]}`}>
-          <Icon size={22} />
+  return (
+    <div className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${style.glow}`}>
+      <div className={`absolute left-0 top-0 h-full w-1 ${style.accent}`} />
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500">{title}</p>
+          <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+            {loading ? (
+              <span className="inline-block h-9 w-14 animate-pulse rounded-lg bg-slate-100" />
+            ) : (
+              value
+            )}
+          </h3>
+          <p className="mt-2 text-xs text-slate-400">{subtitle}</p>
+        </div>
+        <div className={`rounded-2xl p-3.5 transition duration-300 group-hover:scale-110 ${style.icon}`}>
+          <Icon size={23} />
         </div>
       </div>
-
-      <h3 className="mt-4 text-3xl font-bold text-slate-900">
-        {value}
-      </h3>
+      <div className="pointer-events-none absolute -bottom-8 -right-6 h-24 w-24 rounded-full bg-slate-50 opacity-0 transition duration-300 group-hover:opacity-100" />
     </div>
   );
 }
 
-// ==========================================
-// Status Badge
-// ==========================================
-
+// STATUS BADGE
 function StatusBadge({ active }) {
   return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-        active
-          ? "bg-emerald-100 text-emerald-700"
-          : "bg-slate-100 text-slate-600"
-      }`}
-    >
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold ${
+      active
+        ? "border border-emerald-100 bg-emerald-50 text-emerald-700"
+        : "border border-slate-200 bg-slate-100 text-slate-500"
+    }`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${
+        active ? "bg-emerald-500" : "bg-slate-400"
+      }`} />
       {active ? "Active" : "Inactive"}
     </span>
   );
 }
 
-// ==========================================
-// Form Field
-// ==========================================
+// ACTION BUTTON
+function ActionButton({ children, title, color, onClick, disabled }) {
+  const colors = {
+    blue: "bg-blue-50 text-blue-600 hover:bg-blue-100",
+    red: "bg-red-50 text-red-600 hover:bg-red-100",
+  };
 
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-lg p-2.5 transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 ${colors[color]}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// FORM SECTION HEADING
+function FormSection({ title }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+      <Sparkles size={15} className="text-indigo-600" />
+      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+        {title}
+      </h3>
+    </div>
+  );
+}
+
+// FORM FIELD
 function FormField({ label, children }) {
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-semibold text-slate-700">
+      <label className="block text-xs font-semibold text-slate-700">
         {label}
       </label>
-
       {children}
     </div>
   );
