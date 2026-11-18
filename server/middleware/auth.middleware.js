@@ -1,8 +1,8 @@
 
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
-// EXISTING AUTH MIDDLEWARE - PRESERVED
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -14,12 +14,24 @@ const authMiddleware = (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    const user = await User.findByPk(decoded.id, {
+      attributes: ["id", "name", "email", "role", "isActive"],
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: "User account is inactive or unavailable",
+      });
+    }
+
     req.user = {
-      id: decoded.id,
-      role: decoded.role,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
     };
 
     next();
@@ -31,7 +43,6 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// NEW ADMIN ROLE MIDDLEWARE
 export const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== "admin") {
     return res.status(403).json({
@@ -43,5 +54,4 @@ export const requireAdmin = (req, res, next) => {
   next();
 };
 
-// EXISTING DEFAULT EXPORT - PRESERVED
 export default authMiddleware;
