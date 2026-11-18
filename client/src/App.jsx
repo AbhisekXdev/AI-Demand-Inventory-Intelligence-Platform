@@ -6,7 +6,7 @@ import {
   Outlet,
 } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
-
+import InstallAppPrompt from "./components/InstallAppPrompt";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import MainLayout from "./components/layout/MainLayout";
@@ -84,6 +84,7 @@ export default function App() {
         </Routes>
 
         <ToastContainer position="top-right" autoClose={3000} />
+         <InstallAppPrompt />
       </AuthProvider>
     </BrowserRouter>
   );
