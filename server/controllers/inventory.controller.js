@@ -1,33 +1,33 @@
 import Inventory from "../models/Inventory.js";
 import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
-
-const createInventory = async(req,res)=>{
-    try{
-        const{
+import { writeAuditLog } from "../services/auditLog.service.js";
+const createInventory = async (req, res) => {
+    try {
+        const {
             productId,
             quantity,
             reservedQuantity,
             reorderLevel,
             maxStockLevel,
         } = req.body;
-        if(!productId){
+        if (!productId) {
             return res.status(400).json({
                 success: false,
                 message: "Product ID is required",
             });
         }
         const product = await Product.findByPk(productId);
-        if(!product){
+        if (!product) {
             return res.status(404).json({
                 success: false,
                 message: "Product Not Found",
             });
         }
         const existingInventory = await Inventory.findOne({
-            where: {productId},
+            where: { productId },
         });
-        if(existingInventory){
+        if (existingInventory) {
             return res.status(409).json({
                 success: false,
                 message: "Inventory already exists for this product",
@@ -36,10 +36,23 @@ const createInventory = async(req,res)=>{
 
         const inventory = await Inventory.create({
             productId,
-            quantity: quantity?? 0,
-            reservedQuantity: reservedQuantity?? 0,
-            reorderLevel: reorderLevel?? 10,
-            maxStockLevel: maxStockLevel?? null,
+            quantity: quantity ?? 0,
+            reservedQuantity: reservedQuantity ?? 0,
+            reorderLevel: reorderLevel ?? 10,
+            maxStockLevel: maxStockLevel ?? null,
+        });
+        await writeAuditLog({
+            req,
+            action: "CREATE",
+            module: "INVENTORY",
+            entityId: productId,
+            description: `Inventory created for product "${product.name}"`,
+            newValues: {
+                productId,
+                quantity: inventory.quantity,
+                reservedQuantity: inventory.reservedQuantity,
+                reorderLevel: inventory.reorderLevel,
+            },
         });
         return res.status(201).json({
             success: true,
@@ -47,7 +60,7 @@ const createInventory = async(req,res)=>{
             inventory,
         });
 
-    } catch(error){
+    } catch (error) {
         console.error("Create Inventory Error", error);
 
         return res.status(500).json({
@@ -58,8 +71,8 @@ const createInventory = async(req,res)=>{
     }
 };
 
-const getInventory = async(req,res)=>{
-    try{
+const getInventory = async (req, res) => {
+    try {
         const inventory = await Inventory.findAll({
             include: [
                 {
@@ -80,7 +93,7 @@ const getInventory = async(req,res)=>{
             inventory,
         });
 
-    } catch(error){
+    } catch (error) {
         console.error("Get Inventory Error", error);
         return res.status(500).json({
             success: false,
@@ -90,15 +103,15 @@ const getInventory = async(req,res)=>{
     }
 }
 
-const getInventoryByProduct= async(req,res)=>{
-    try{
+const getInventoryByProduct = async (req, res) => {
+    try {
         const { productId } = req.params;
         const inventory = await Inventory.findOne({
-            where:{productId},
+            where: { productId },
             include: [
                 {
                     model: Product,
-                    as:"product",
+                    as: "product",
                     attributes: [
                         "id",
                         "name",
@@ -107,7 +120,7 @@ const getInventoryByProduct= async(req,res)=>{
                 },
             ],
         });
-        if(!inventory){
+        if (!inventory) {
             return res.status(404).json({
                 success: false,
                 message: "Inventory not found for this product",
@@ -118,9 +131,9 @@ const getInventoryByProduct= async(req,res)=>{
             inventory,
         });
 
-    } catch(error){
+    } catch (error) {
         console.error(
-            "Get INventory by Product Error:",error
+            "Get INventory by Product Error:", error
         );
         return res.status(500).json({
             success: false,
@@ -217,6 +230,23 @@ const updateStock = async (req, res) => {
             newQuantity,
             notes: `Manual ${type} transaction`,
         });
+        const product = await Product.findByPk(productId);
+
+await writeAuditLog({
+  req,
+  action: type,
+  module: "INVENTORY",
+  entityId: productId,
+  description: `${type} for product "${product?.name || productId}"`,
+  oldValues: {
+    quantity: previousQuantity,
+  },
+  newValues: {
+    quantity: newQuantity,
+    stockMovementQuantity: stockQuantity,
+    type,
+  },
+});
 
         return res.status(200).json({
             success: true,
@@ -235,12 +265,12 @@ const updateStock = async (req, res) => {
     }
 };
 //Get Low Stock Inventory 
-const getLowStockInventory = async(req,res)=>{
-    try{
-        const inventory= await  Inventory.findAll({
+const getLowStockInventory = async (req, res) => {
+    try {
+        const inventory = await Inventory.findAll({
             include: [
                 {
-                    model:Product,
+                    model: Product,
                     as: "product",
                     attributes: [
                         "id",
@@ -252,7 +282,7 @@ const getLowStockInventory = async(req,res)=>{
             order: [["quantity", "ASC"]],
         });
         const lowStock = inventory.filter(
-            (item)=> item.quantity <= item.reorderLevel
+            (item) => item.quantity <= item.reorderLevel
         );
         return res.status(200).json({
             success: true,
@@ -260,7 +290,7 @@ const getLowStockInventory = async(req,res)=>{
             lowStock,
         });
 
-    } catch(error){
+    } catch (error) {
         console.error("Get Low Stock Error", error);
         return res.status(500).json({
             success: false,
@@ -347,6 +377,24 @@ const adjustStock = async (req, res) => {
             newQuantity,
             notes: notes || "Manual stock adjustment",
         });
+        const product = await Product.findByPk(productId);
+
+await writeAuditLog({
+  req,
+  action: "STOCK_ADJUSTMENT",
+  module: "INVENTORY",
+  entityId: productId,
+  description: `Stock adjusted for product "${product?.name || productId}"`,
+  oldValues: {
+    quantity: previousQuantity,
+  },
+  newValues: {
+    quantity: newQuantity,
+    adjustmentQuantity,
+    type,
+    notes: notes || "Manual stock adjustment",
+  },
+});
 
         return res.status(200).json({
             success: true,
@@ -366,5 +414,5 @@ const adjustStock = async (req, res) => {
 };
 
 export {
-    createInventory,getInventory,getInventoryByProduct,updateStock, getLowStockInventory,adjustStock
+    createInventory, getInventory, getInventoryByProduct, updateStock, getLowStockInventory, adjustStock
 };
