@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Package,
@@ -92,22 +91,45 @@ export default function Dashboard() {
 
   // Welcome popup state
   const [showWelcome, setShowWelcome] = useState(false);
+  const [isWelcomeClosing, setIsWelcomeClosing] = useState(false);
 
-  // Display welcome popup once per login session
+  // Show the welcome popup once per authenticated user's browser session.
   useEffect(() => {
     if (!user) return;
 
-    const token = localStorage.getItem("authToken");
+    const sessionUser = user.id ?? user.email ?? user.name ?? "user";
+    const welcomeSessionKey = `adi-welcome-${sessionUser}`;
 
-    if (!token) return;
+    if (sessionStorage.getItem(welcomeSessionKey)) return;
 
-    const welcomeKey = `welcomeShown_${token}`;
+    sessionStorage.setItem(welcomeSessionKey, "shown");
+    setShowWelcome(true);
+  }, [user?.id, user?.email, user?.name]);
 
-    if (!sessionStorage.getItem(welcomeKey)) {
-      setShowWelcome(true);
-      sessionStorage.setItem(welcomeKey, "true");
-    }
-  }, [user]);
+  // Begin the closing animation shortly before the 5-second auto-close.
+  useEffect(() => {
+    if (!showWelcome) return;
+
+    const timer = setTimeout(() => {
+      setIsWelcomeClosing(true);
+    }, 4650);
+
+    return () => clearTimeout(timer);
+  }, [showWelcome]);
+
+  // Finish the closing animation.
+  useEffect(() => {
+    if (!isWelcomeClosing) return;
+
+    const timer = setTimeout(() => {
+      setShowWelcome(false);
+      setIsWelcomeClosing(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [isWelcomeClosing]);
+
+  const closeWelcome = () => setIsWelcomeClosing(true);
 
   // Load dashboard data
   const loadDashboard = useCallback(async (isRefresh = false) => {
@@ -168,9 +190,7 @@ export default function Dashboard() {
         const response = results[3].value;
 
         setInventoryRecords(
-          Array.isArray(response?.inventory)
-            ? response.inventory
-            : []
+          Array.isArray(response?.inventory) ? response.inventory : [],
         );
       } else {
         failedRequests++;
@@ -180,17 +200,14 @@ export default function Dashboard() {
       if (failedRequests === 4) {
         toast.error("Unable to load dashboard data");
       } else if (failedRequests > 0) {
-        toast.warning(
-          "Some dashboard information could not be loaded"
-        );
+        toast.warning("Some dashboard information could not be loaded");
       } else if (isRefresh) {
         toast.success("Dashboard refreshed successfully");
       }
     } catch (error) {
       console.error("Dashboard loading error:", error);
       toast.error(
-        error.userMessage ||
-        "Something went wrong while loading dashboard"
+        error.userMessage || "Something went wrong while loading dashboard",
       );
     } finally {
       setLoading(false);
@@ -210,10 +227,7 @@ export default function Dashboard() {
     return inventoryRecords.map((item) => {
       const quantity = Number(item.quantity) || 0;
       const reservedQuantity = Number(item.reservedQuantity) || 0;
-      const availableStock = Math.max(
-        0,
-        quantity - reservedQuantity
-      );
+      const availableStock = Math.max(0, quantity - reservedQuantity);
       const reorderLevel = Number(item.reorderLevel) || 0;
 
       return {
@@ -239,17 +253,14 @@ export default function Dashboard() {
 
   // Calculate alerts from actual inventory records.
   const lowStockProducts = normalizedInventory.filter(
-    (item) => item.status === "LOW_STOCK"
+    (item) => item.status === "LOW_STOCK",
   );
 
   const outOfStockProducts = normalizedInventory.filter(
-    (item) => item.status === "OUT_OF_STOCK"
+    (item) => item.status === "OUT_OF_STOCK",
   );
 
-  const stockAlerts = [
-    ...outOfStockProducts,
-    ...lowStockProducts,
-  ];
+  const stockAlerts = [...outOfStockProducts, ...lowStockProducts];
 
   // Chart uses ALL inventory records.
   const chartData = normalizedInventory.map((item) => ({
@@ -259,16 +270,16 @@ export default function Dashboard() {
 
   const totalInventoryUnits = normalizedInventory.reduce(
     (total, item) => total + item.quantity,
-    0
+    0,
   );
 
   const totalAvailableUnits = normalizedInventory.reduce(
     (total, item) => total + item.availableStock,
-    0
+    0,
   );
 
   const healthyStockCount = normalizedInventory.filter(
-    (item) => item.status === "HEALTHY"
+    (item) => item.status === "HEALTHY",
   ).length;
 
   const totalStockAlerts = stockAlerts.length;
@@ -277,8 +288,11 @@ export default function Dashboard() {
 
   const filteredRecentOrders = recentOrders.filter((order) => {
     const searchText = poSearch.trim().toLowerCase();
-    const matchesSearch = [order.poNumber, order.id, order.status].some((value) =>
-      String(value ?? "").toLowerCase().includes(searchText)
+    const matchesSearch = [order.poNumber, order.id, order.status].some(
+      (value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(searchText),
     );
     const matchesStatus =
       poStatusFilter === "ALL" ||
@@ -295,10 +309,7 @@ export default function Dashboard() {
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
-            <RefreshCw
-              size={30}
-              className="animate-spin text-blue-600"
-            />
+            <RefreshCw size={30} className="animate-spin text-blue-600" />
           </div>
 
           <p className="mt-4 text-sm font-semibold text-slate-700">
@@ -318,91 +329,102 @@ export default function Dashboard() {
       {/* Welcome Popup */}
       {showWelcome && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          className={`welcome-overlay fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/65 px-3 py-5 backdrop-blur-md sm:px-6 sm:py-8 ${
+            isWelcomeClosing ? "welcome-overlay-exit" : ""
+          }`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="welcome-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeWelcome();
+          }}
         >
-          <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-
+          <div
+            className={`welcome-card relative my-auto w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl shadow-slate-950/30 sm:rounded-3xl ${
+              isWelcomeClosing ? "welcome-card-exit" : ""
+            }`}
+          >
             {/* Close Button */}
             <button
               type="button"
-              onClick={() => setShowWelcome(false)}
-              className="absolute right-4 top-4 z-10 rounded-full bg-white/15 p-2 text-white transition hover:bg-white/25"
+              onClick={closeWelcome}
+              className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-slate-950/20 text-white backdrop-blur-md transition duration-200 hover:rotate-90 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/80 sm:right-4 sm:top-4"
               aria-label="Close welcome popup"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
 
-            {/* Popup Header */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-slate-900 px-6 py-10 text-center text-white">
+            {/* Animated Welcome Header */}
+            <div className="welcome-header relative isolate overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-slate-950 px-5 pb-8 pt-10 text-center text-white sm:px-8 sm:pb-9 sm:pt-12">
+              <div className="welcome-orb pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-cyan-300/20 blur-3xl sm:h-56 sm:w-56" />
+              <div className="welcome-orb welcome-orb-delay pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-indigo-300/25 blur-3xl sm:h-60 sm:w-60" />
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_55%)]" />
 
-              <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-
-              <div className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-blue-400/20 blur-2xl" />
-
-              <div className="relative z-10">
-
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/30 bg-white/15 shadow-lg">
-                  <UserRound size={38} />
+              <div className="relative z-10 mx-auto max-w-sm">
+                <div className="welcome-icon relative mx-auto mb-5 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl border border-white/30 bg-white/15 text-white shadow-xl shadow-blue-950/20 backdrop-blur-md sm:h-20 sm:w-20 sm:rounded-3xl">
+                  <UserRound size={34} strokeWidth={1.7} className="sm:h-10 sm:w-10" />
+                  <Sparkles size={16} className="absolute -right-1 -top-1 text-cyan-200" />
                 </div>
 
-                <div className="mb-3 flex items-center justify-center gap-2 text-sm font-medium text-blue-100">
-                  <Sparkles size={16} />
-                  Welcome to your workspace
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-blue-100 backdrop-blur-sm sm:text-xs">
+                  <Sparkles size={14} />
+                  YOUR WORKSPACE IS READY
                 </div>
 
                 <h2
                   id="welcome-title"
-                  className="text-2xl font-bold tracking-tight sm:text-3xl"
+                  className="break-words text-2xl font-extrabold tracking-tight sm:text-3xl"
                 >
-                  Hello, {user?.name || "User"}!
+                  Welcome, {user?.name || "User"}!
                 </h2>
 
-                <p className="mt-2 text-sm text-blue-100">
-                  We're happy to have you here.
+                <p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-blue-100 sm:text-sm">
+                  Great to have you here. Let’s make smarter inventory decisions together.
                 </p>
               </div>
             </div>
 
-            {/* User Details */}
-            <div className="p-6 text-center">
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Logged-in User
+            {/* Welcome Details */}
+            <div className="px-5 pb-5 pt-5 text-center sm:px-8 sm:pb-7 sm:pt-6">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-4 sm:rounded-2xl sm:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:text-[11px]">
+                  Signed in as
                 </p>
 
-                <h3 className="mt-2 text-xl font-bold text-slate-800">
+                <p className="mt-2 break-words text-base font-bold text-slate-900 sm:text-lg">
                   {user?.name || "User"}
-                </h3>
+                </p>
 
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold capitalize text-blue-700">
-                  <UserRound size={15} />
+                <span className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold capitalize text-blue-700">
+                  <UserRound size={14} />
                   {user?.role || "Staff"}
-                </div>
-
+                </span>
               </div>
 
-              <p className="mt-5 text-sm leading-6 text-slate-500">
-                Manage inventory, monitor demand and make
-                smarter business decisions with your
-                AI-powered intelligence platform.
+              <p className="mx-auto mt-4 max-w-sm text-xs leading-5 text-slate-500 sm:mt-5 sm:text-sm sm:leading-6">
+                Manage inventory, monitor demand and make smarter business decisions with your AI-powered intelligence platform.
               </p>
 
-              {/* Continue Button */}
               <button
                 type="button"
-                onClick={() => setShowWelcome(false)}
-                className="mt-6 w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
+                onClick={closeWelcome}
+                className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition duration-200 hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-200 active:translate-y-0 sm:mt-6"
               >
                 Continue to Dashboard
+                <span aria-hidden="true">→</span>
               </button>
 
-              <p className="mt-4 text-xs font-medium uppercase tracking-wider text-slate-400">
-                AI Demand & Inventory Intelligence Platform
+              <div className="mt-4 flex items-center justify-center gap-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400 sm:text-[10px]">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                AI Demand & Inventory Intelligence
+              </div>
+
+              {/* Auto-close progress indicator */}
+              <div className="mt-4 h-1 overflow-hidden rounded-full bg-slate-100">
+                <div className="welcome-progress h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500" />
+              </div>
+              <p className="mt-2 text-[10px] text-slate-400">
+                This window closes automatically in 5 seconds
               </p>
             </div>
           </div>
@@ -411,7 +433,6 @@ export default function Dashboard() {
 
       {/* Main Dashboard */}
       <div className="mx-auto max-w-[1600px] space-y-7">
-
         {/* Header */}
         <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-blue-950 to-blue-800 p-6 shadow-lg sm:p-8">
           <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl" />
@@ -505,7 +526,6 @@ export default function Dashboard() {
 
         {/* Inventory Health */}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
           <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -529,9 +549,7 @@ export default function Dashboard() {
           <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50 p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">
-                  Low Stock
-                </p>
+                <p className="text-sm font-medium text-slate-500">Low Stock</p>
                 <h3 className="mt-2 text-3xl font-bold text-amber-700">
                   {lowStockProducts.length}
                 </h3>
@@ -565,7 +583,6 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-
         </section>
 
         {/* Purchase Order Value */}
@@ -617,8 +634,8 @@ export default function Dashboard() {
               </p>
 
               <p className="mt-1 text-xs text-slate-500">
-                Add initial stock from Inventory Management to populate
-                the inventory chart and stock overview.
+                Add initial stock from Inventory Management to populate the
+                inventory chart and stock overview.
               </p>
             </div>
           )}
@@ -633,8 +650,12 @@ export default function Dashboard() {
                   <ClipboardList size={23} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Recent Purchase Orders</h3>
-                  <p className="mt-1 text-xs text-slate-500">Monitor purchasing activity and order status</p>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Recent Purchase Orders
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Monitor purchasing activity and order status
+                  </p>
                 </div>
               </div>
               <span className="w-fit rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
@@ -645,12 +666,30 @@ export default function Dashboard() {
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <div className="flex h-11 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-50 sm:max-w-sm">
                 <Search size={17} className="shrink-0 text-slate-400" />
-                <input type="search" value={poSearch} onChange={(e) => setPoSearch(e.target.value)} placeholder="Search PO number or status..." className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400" />
-                {poSearch && <button type="button" onClick={() => setPoSearch("")} className="text-xs font-semibold text-indigo-600">Clear</button>}
+                <input
+                  type="search"
+                  value={poSearch}
+                  onChange={(e) => setPoSearch(e.target.value)}
+                  placeholder="Search PO number or status..."
+                  className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                />
+                {poSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setPoSearch("")}
+                    className="text-xs font-semibold text-indigo-600"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
               <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 sm:w-48">
                 <Filter size={16} className="text-slate-400" />
-                <select value={poStatusFilter} onChange={(e) => setPoStatusFilter(e.target.value)} className="w-full bg-transparent text-sm text-slate-700 outline-none">
+                <select
+                  value={poStatusFilter}
+                  onChange={(e) => setPoStatusFilter(e.target.value)}
+                  className="w-full bg-transparent text-sm text-slate-700 outline-none"
+                >
                   <option value="ALL">All Status</option>
                   <option value="DRAFT">Draft</option>
                   <option value="PENDING">Pending</option>
@@ -674,37 +713,113 @@ export default function Dashboard() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredRecentOrders.map((order, index) => (
-                  <tr key={order.id} className="dashboard-table-row transition-colors hover:bg-indigo-50/40" style={{ animationDelay: `${index * 50}ms` }}>
+                  <tr
+                    key={order.id}
+                    className="dashboard-table-row transition-colors hover:bg-indigo-50/40"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><ShoppingCart size={19} /></div>
-                        <div><p className="font-bold text-slate-800">{order.poNumber ?? `PO-${order.id}`}</p><p className="mt-1 text-[11px] text-slate-400">Purchase order</p></div>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                          <ShoppingCart size={19} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800">
+                            {order.poNumber ?? `PO-${order.id}`}
+                          </p>
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            Purchase order
+                          </p>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4"><div className="flex items-center gap-2 text-slate-600"><Clock3 size={15} className="text-slate-400" />{formatDate(order.orderDate)}</div></td>
-                    <td className="px-5 py-4 font-bold text-slate-800">{formatCurrency(order.totalAmount)}</td>
-                    <td className="px-5 py-4"><span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold ${getStatusStyle(order.status)}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{order.status ?? "UNKNOWN"}</span></td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Clock3 size={15} className="text-slate-400" />
+                        {formatDate(order.orderDate)}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 font-bold text-slate-800">
+                      {formatCurrency(order.totalAmount)}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold ${getStatusStyle(order.status)}`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {order.status ?? "UNKNOWN"}
+                      </span>
+                    </td>
                   </tr>
                 ))}
-                {filteredRecentOrders.length === 0 && <tr><td colSpan={4} className="px-5 py-14 text-center"><ClipboardList size={34} className="mx-auto text-slate-300" /><p className="mt-3 font-semibold text-slate-700">No matching purchase orders</p><p className="mt-1 text-xs text-slate-400">Change your search or status filter.</p></td></tr>}
+                {filteredRecentOrders.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-14 text-center">
+                      <ClipboardList
+                        size={34}
+                        className="mx-auto text-slate-300"
+                      />
+                      <p className="mt-3 font-semibold text-slate-700">
+                        No matching purchase orders
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Change your search or status filter.
+                      </p>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
           <div className="grid gap-3 p-3 md:hidden">
             {filteredRecentOrders.map((order, index) => (
-              <article key={order.id} className="dashboard-table-row rounded-xl border border-slate-200 bg-white p-4" style={{ animationDelay: `${index * 50}ms` }}>
+              <article
+                key={order.id}
+                className="dashboard-table-row rounded-xl border border-slate-200 bg-white p-4"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><ShoppingCart size={19} /></div>
-                    <div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{order.poNumber ?? `PO-${order.id}`}</p><p className="mt-1 text-xs text-slate-400">{formatDate(order.orderDate)}</p></div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <ShoppingCart size={19} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-800">
+                        {order.poNumber ?? `PO-${order.id}`}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {formatDate(order.orderDate)}
+                      </p>
+                    </div>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${getStatusStyle(order.status)}`}>{order.status ?? "UNKNOWN"}</span>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${getStatusStyle(order.status)}`}
+                  >
+                    {order.status ?? "UNKNOWN"}
+                  </span>
                 </div>
-                <div className="mt-4 border-t border-slate-100 pt-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Order Amount</p><p className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(order.totalAmount)}</p></div>
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Order Amount
+                  </p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">
+                    {formatCurrency(order.totalAmount)}
+                  </p>
+                </div>
               </article>
             ))}
-            {filteredRecentOrders.length === 0 && <div className="py-12 text-center"><ClipboardList size={32} className="mx-auto text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">No matching purchase orders</p><p className="mt-1 text-xs text-slate-400">Try changing your search or filter.</p></div>}
+            {filteredRecentOrders.length === 0 && (
+              <div className="py-12 text-center">
+                <ClipboardList size={32} className="mx-auto text-slate-300" />
+                <p className="mt-3 text-sm font-semibold text-slate-700">
+                  No matching purchase orders
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Try changing your search or filter.
+                </p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -719,8 +834,40 @@ export default function Dashboard() {
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
           }
+
+          .welcome-overlay { animation: welcomeOverlayIn .28s ease-out both; }
+          .welcome-card { animation: welcomeCardIn .42s cubic-bezier(.2,.8,.2,1) both; }
+          .welcome-overlay-exit { animation: welcomeOverlayOut .35s ease-in both; }
+          .welcome-card-exit { animation: welcomeCardOut .35s ease-in both; }
+          .welcome-orb { animation: welcomeOrbFloat 5s ease-in-out infinite alternate; }
+          .welcome-orb-delay { animation-delay: -.9s; }
+          .welcome-icon { animation: welcomeIconIn .55s .12s cubic-bezier(.2,.8,.2,1) both; }
+          .welcome-progress { transform-origin: left; animation: welcomeProgress 5s linear both; }
+
+          @keyframes welcomeOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes welcomeOverlayOut { from { opacity: 1; } to { opacity: 0; } }
+          @keyframes welcomeCardIn {
+            from { opacity: 0; transform: translateY(22px) scale(.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          @keyframes welcomeCardOut {
+            from { opacity: 1; transform: translateY(0) scale(1); }
+            to { opacity: 0; transform: translateY(12px) scale(.98); }
+          }
+          @keyframes welcomeIconIn {
+            from { opacity: 0; transform: translateY(10px) scale(.82) rotate(-8deg); }
+            to { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+          }
+          @keyframes welcomeOrbFloat {
+            from { transform: translate3d(0, 0, 0) scale(1); }
+            to { transform: translate3d(12px, -10px, 0) scale(1.12); }
+          }
+          @keyframes welcomeProgress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
           @media (prefers-reduced-motion: reduce) {
-            .dashboard-table-row { animation: none !important; }
+            .dashboard-table-row, .welcome-overlay, .welcome-card,
+            .welcome-overlay-exit, .welcome-card-exit, .welcome-orb,
+            .welcome-icon, .welcome-progress { animation: none !important; }
           }
         `}</style>
 
@@ -729,11 +876,11 @@ export default function Dashboard() {
           <p>AI Demand & Inventory Intelligence Platform</p>
 
           <p>
-            {inventoryAnalytics.totalInventoryRecords ?? inventoryRecords.length}{" "}
+            {inventoryAnalytics.totalInventoryRecords ??
+              inventoryRecords.length}{" "}
             inventory records loaded
           </p>
         </div>
-
       </div>
     </>
   );
