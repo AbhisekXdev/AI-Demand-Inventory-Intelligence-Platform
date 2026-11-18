@@ -48,7 +48,18 @@ const app = express();
 app.use(helmet());
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+    process.env.CLIENT_URL,
+    process.env.CLIENT_PRODUCTION_URL,
+    process.env.CLIENT_PRODUCTION_URL_ALT
+].filter(Boolean);
+
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

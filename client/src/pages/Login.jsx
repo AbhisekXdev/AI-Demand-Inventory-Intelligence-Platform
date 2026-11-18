@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
-  Boxes, Eye, EyeOff, Mail, LockKeyhole, ShieldCheck,
-  RefreshCw, CheckCircle2, BarChart3, Package, Zap,
-  ArrowRight, TrendingUp, Sparkles
+  Eye, EyeOff, Mail, LockKeyhole, ShieldCheck,
+  RefreshCw, CheckCircle2, BarChart3, Package,
+  Zap, ArrowRight, TrendingUp, Sparkles
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
@@ -11,8 +12,37 @@ import { useAuth } from "../context/AuthContext";
 const generateCaptcha = () => {
   const a = Math.floor(Math.random() * 9) + 1;
   const b = Math.floor(Math.random() * 9) + 1;
-  return { question: `${a} + ${b}`, answer: String(a + b) };
+
+  return {
+    question: `${a} + ${b}`,
+    answer: String(a + b)
+  };
 };
+
+function BrandLogo({ size = 44 }) {
+  return (
+    <div
+      className="flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-800 text-white shadow-lg shadow-indigo-950/20"
+      style={{ width: size, height: size }}
+    >
+      <svg viewBox="0 0 48 48" width="75%" height="75%" fill="none">
+        <rect x="5" y="21" width="7" height="19" rx="2" fill="#67E8F9" />
+        <rect x="16" y="13" width="7" height="27" rx="2" fill="#38BDF8" />
+        <rect x="27" y="5" width="7" height="35" rx="2" fill="#22D3EE" />
+        <path
+          d="M7 37C17 37 25 31 39 15"
+          stroke="#FBBF24"
+          strokeWidth="3.5"
+          strokeLinecap="round"
+        />
+        <path d="M31 15L40 13L39 22" stroke="#FBBF24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M28 31L39 28L45 33L34 36L28 31Z" fill="white" />
+        <path d="M28 31V39L34 43V36L28 31Z" fill="#CBD5E1" />
+        <path d="M34 36L45 33V40L34 43V36Z" fill="#F8FAFC" />
+      </svg>
+    </div>
+  );
+}
 
 export default function Login() {
   const { login, isAuthenticated } = useAuth();
@@ -22,9 +52,11 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const [captcha, setCaptcha] = useState(generateCaptcha);
   const [captchaInput, setCaptchaInput] = useState("");
   const [verified, setVerified] = useState(false);
+  const [captchaError, setCaptchaError] = useState("");
 
   if (isAuthenticated) return <Navigate to="/" replace />;
 
@@ -32,39 +64,52 @@ export default function Login() {
     setCaptcha(generateCaptcha());
     setCaptchaInput("");
     setVerified(false);
+    setCaptchaError("");
   };
 
-  const verifyCaptcha = () => {
-    if (captchaInput.trim() !== captcha.answer) {
-      toast.error("Incorrect verification answer");
-      refreshCaptcha();
-      return;
+  // Automatically verify as soon as the complete answer is entered.
+  const handleCaptchaChange = (value) => {
+    const cleanedValue = value.replace(/\D/g, "").slice(0, 2);
+
+    setCaptchaInput(cleanedValue);
+    setVerified(false);
+    setCaptchaError("");
+
+    if (cleanedValue.length === captcha.answer.length) {
+      if (cleanedValue === captcha.answer) {
+        setVerified(true);
+        setCaptchaError("");
+      } else {
+        setCaptchaError("Incorrect answer. Please try again.");
+      }
     }
-    setVerified(true);
-    toast.success("Verification successful");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!verified) {
-      toast.error("Complete security verification first");
+      toast.error("Please complete the security verification.");
       return;
     }
 
     try {
       setLoading(true);
+
       await login({
         email: form.email.trim(),
-        password: form.password,
+        password: form.password
       });
 
       toast.success("Login successful");
+
       navigate(location.state?.from?.pathname || "/", {
-        replace: true,
+        replace: true
       });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Unable to login");
+      toast.error(
+        error.response?.data?.message || "Unable to login"
+      );
       refreshCaptcha();
     } finally {
       setLoading(false);
@@ -72,31 +117,32 @@ export default function Login() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f8fc] lg:grid lg:grid-cols-2">
+    <main className="min-h-screen bg-[#f5f7fc] lg:grid lg:grid-cols-2">
 
-      {/* LEFT: AI EXPERIENCE */}
-      <section className="relative isolate min-h-[310px] overflow-hidden bg-[#21105d] text-white sm:min-h-[390px] lg:sticky lg:top-0 lg:h-screen lg:min-h-screen">
+      {/* LEFT: BRAND EXPERIENCE */}
+      <section className="relative isolate min-h-[330px] overflow-hidden bg-[#111b4b] text-white sm:min-h-[410px] lg:sticky lg:top-0 lg:h-screen lg:min-h-screen">
 
-        {/* Animated background */}
         <div className="login-orb login-orb-one" />
         <div className="login-orb login-orb-two" />
         <div className="login-grid absolute inset-0 opacity-20" />
 
         {/* Brand */}
         <div className="relative z-20 flex items-center gap-3 px-6 pt-7 sm:px-10 lg:px-12 lg:pt-10">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 backdrop-blur-lg">
-            <Boxes size={25} />
-          </div>
+          <BrandLogo size={48} />
           <div>
-            <h2 className="font-bold tracking-wide">Inventory Intelligence</h2>
-            <p className="text-[11px] text-indigo-200">AI BUSINESS PLATFORM</p>
+            <h2 className="font-bold tracking-wide">
+              DemandIQ
+            </h2>
+            <p className="text-[11px] text-indigo-200">
+              AI DEMAND & INVENTORY INTELLIGENCE
+            </p>
           </div>
         </div>
 
-        {/* Intro */}
-        <div className="relative z-20 px-6 pt-8 sm:px-10 sm:pt-10 lg:px-12 lg:pt-16">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[2px] text-cyan-200 sm:text-xs">
-            <Sparkles size={13} />
+        {/* Introduction */}
+        <div className="relative z-20 px-6 pt-9 sm:px-10 lg:px-12 lg:pt-16">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-cyan-200">
+            <Sparkles size={14} />
             Intelligent Operations
           </div>
 
@@ -108,21 +154,20 @@ export default function Login() {
             </span>
           </h1>
 
-          <p className="mt-3 max-w-md text-xs leading-6 text-indigo-100 sm:text-sm sm:leading-7">
+          <p className="mt-4 max-w-md text-sm leading-7 text-indigo-100">
             Transform your business with AI-powered forecasting,
             real-time inventory visibility and intelligent decisions.
           </p>
 
-          {/* Features: desktop and tablet */}
-          <div className="mt-6 hidden space-y-3 sm:flex sm:flex-wrap lg:flex-col lg:space-y-4">
+          <div className="mt-7 hidden space-y-4 sm:block">
             {[
               { icon: BarChart3, text: "AI Demand Forecasting" },
               { icon: Package, text: "Real-time Inventory Control" },
-              { icon: Zap, text: "Intelligent Business Operations" },
+              { icon: Zap, text: "Intelligent Business Operations" }
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3 text-sm text-indigo-50">
-                <div className="rounded-lg border border-white/15 bg-white/10 p-2">
-                  <Icon size={17} />
+                <div className="rounded-lg border border-white/15 bg-white/10 p-2.5">
+                  <Icon size={18} />
                 </div>
                 {text}
               </div>
@@ -131,23 +176,25 @@ export default function Login() {
         </div>
 
         {/* Robot artwork */}
-        <div className="pointer-events-none relative z-10 mx-auto mt-2 h-[190px] w-full max-w-[620px] sm:absolute sm:bottom-0 sm:right-0 sm:mt-0 sm:h-[48%] sm:max-h-[440px] sm:w-[85%] lg:h-[43%] lg:w-full lg:max-w-none">
- <img
-  src="/images/login-robot.png"
-  alt="AI inventory assistant robot"
-  className="login-robot h-full w-full object-contain object-bottom"
-  onError={(e) => console.error("Robot image failed:", e.currentTarget.src)}
-/>
-  <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#21105d] to-transparent" />
-</div>
+        <div className="pointer-events-none relative z-10 mx-auto mt-4 h-[190px] w-full max-w-[620px] sm:absolute sm:bottom-0 sm:right-0 sm:mt-0 sm:h-[45%] sm:w-[85%] lg:h-[43%] lg:w-full lg:max-w-none">
+          <img
+            src="/images/login-robot.png"
+            alt="AI inventory assistant"
+            className="login-robot h-full w-full object-contain object-bottom"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#111b4b] to-transparent" />
+        </div>
 
-        {/* Floating analytics card */}
-        <div className="absolute bottom-[15%] right-[7%] z-20 hidden animate-float rounded-xl border border-white/20 bg-white/10 p-3 shadow-2xl backdrop-blur-xl sm:block lg:bottom-[13%] lg:right-[8%]">
+        {/* Analytics card */}
+        <div className="absolute bottom-[14%] right-[7%] z-20 hidden animate-float rounded-xl border border-white/20 bg-white/10 p-3 shadow-2xl backdrop-blur-xl sm:block">
           <div className="flex items-center gap-2 text-xs text-indigo-100">
             <TrendingUp size={15} className="text-emerald-300" />
             Demand analytics
           </div>
-          <div className="mt-2 flex items-end gap-1.5">
+          <div className="mt-3 flex items-end gap-1.5">
             {[25, 38, 30, 55, 45, 70, 88].map((height, i) => (
               <div
                 key={i}
@@ -156,11 +203,13 @@ export default function Login() {
               />
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-indigo-200">Live intelligence</p>
+          <p className="mt-2 text-[10px] text-indigo-200">
+            Intelligent insights
+          </p>
         </div>
 
         <div className="absolute bottom-5 left-6 z-20 hidden text-[10px] text-indigo-200 sm:block lg:left-12">
-          © {new Date().getFullYear()} AI Demand & Inventory Intelligence
+          © {new Date().getFullYear()} DemandIQ
         </div>
       </section>
 
@@ -173,12 +222,10 @@ export default function Login() {
 
           {/* Mobile brand */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
-              <Boxes size={24} />
-            </div>
+            <BrandLogo size={46} />
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                Inventory<span className="text-indigo-600">AI</span>
+                DemandIQ
               </h2>
               <p className="text-[11px] text-slate-500">
                 Demand & Inventory Intelligence
@@ -192,9 +239,14 @@ export default function Login() {
               <LockKeyhole size={23} />
             </div>
 
+            <p className="mb-2 text-xs font-bold uppercase tracking-[2px] text-indigo-600">
+              Welcome to DemandIQ
+            </p>
+
             <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-[34px]">
               Welcome back
             </h2>
+
             <p className="mt-2 text-sm leading-6 text-slate-500">
               Sign in to access your organization's workspace.
             </p>
@@ -207,12 +259,15 @@ export default function Login() {
               <label className="mb-2 block text-sm font-semibold text-slate-700">
                 Work email
               </label>
+
               <div className="login-input">
                 <Mail size={18} className="shrink-0 text-slate-400" />
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, email: e.target.value })
+                  }
                   placeholder="name@company.com"
                   autoComplete="username"
                   required
@@ -225,16 +280,21 @@ export default function Login() {
               <label className="mb-2 block text-sm font-semibold text-slate-700">
                 Password
               </label>
+
               <div className="login-input">
                 <LockKeyhole size={18} className="shrink-0 text-slate-400" />
+
                 <input
                   type={showPassword ? "text" : "password"}
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   required
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -246,62 +306,107 @@ export default function Login() {
               </div>
             </div>
 
-            {/* CAPTCHA */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            {/* Automatic CAPTCHA */}
+            <div className={`rounded-xl border p-4 transition-all ${
+              verified
+                ? "border-emerald-200 bg-emerald-50/70"
+                : captchaError
+                  ? "border-red-200 bg-red-50/60"
+                  : "border-slate-200 bg-slate-50"
+            }`}>
               <div className="mb-3 flex items-center gap-2">
-                <ShieldCheck size={18} className="text-indigo-600" />
+                <ShieldCheck
+                  size={19}
+                  className={verified ? "text-emerald-600" : "text-indigo-600"}
+                />
+
                 <span className="text-sm font-bold text-slate-800">
                   Security verification
                 </span>
+
                 {verified && (
-                  <CheckCircle2 size={17} className="ml-auto text-emerald-600" />
+                  <CheckCircle2
+                    size={18}
+                    className="ml-auto text-emerald-600"
+                  />
                 )}
               </div>
 
               <p className="mb-3 text-xs text-slate-500">
-                Solve the calculation to continue.
+                Solve the calculation. Verification happens automatically.
               </p>
 
               <div className="flex min-w-0 gap-2">
                 <div className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white text-lg font-bold text-slate-800">
                   {captcha.question} = ?
                 </div>
-                <input
-                  type="number"
-                  value={captchaInput}
-                  onChange={(e) => {
-                    setCaptchaInput(e.target.value);
-                    setVerified(false);
-                  }}
-                  placeholder="Answer"
-                  aria-label="CAPTCHA answer"
-                  className="h-12 w-24 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
-                />
+
+                <div className="relative w-28 shrink-0">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={captchaInput}
+                    onChange={(e) => handleCaptchaChange(e.target.value)}
+                    placeholder="Answer"
+                    aria-label="CAPTCHA answer"
+                    aria-invalid={Boolean(captchaError)}
+                    className={`h-12 w-full rounded-lg border bg-white px-2 text-center text-sm font-semibold outline-none transition focus:ring-2 ${
+                      verified
+                        ? "border-emerald-500 text-emerald-700 focus:ring-emerald-100"
+                        : captchaError
+                          ? "border-red-400 focus:ring-red-100"
+                          : "border-slate-300 focus:border-indigo-600 focus:ring-indigo-100"
+                    }`}
+                    maxLength={2}
+                    required
+                  />
+
+                  {verified && (
+                    <CheckCircle2
+                      size={17}
+                      className="absolute -right-2 -top-2 rounded-full bg-white text-emerald-600"
+                    />
+                  )}
+                </div>
+
                 <button
                   type="button"
                   onClick={refreshCaptcha}
                   aria-label="Refresh CAPTCHA"
-                  className="flex h-12 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
+                  className="flex h-12 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
                 >
                   <RefreshCw size={17} />
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={verifyCaptcha}
-                disabled={verified || !captchaInput.trim()}
-                className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
-              >
-                {verified ? "Verification completed" : "Verify"}
-              </button>
+              <div className="mt-3 min-h-5 text-xs font-semibold" aria-live="polite">
+                {verified && (
+                  <span className="flex items-center gap-1.5 text-emerald-700">
+                    <CheckCircle2 size={14} />
+                    Verified successfully!
+                  </span>
+                )}
+
+                {captchaError && (
+                  <span className="text-red-600">
+                    {captchaError}
+                  </span>
+                )}
+
+                {!verified && !captchaError && (
+                  <span className="text-slate-400">
+                    Waiting for your answer...
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Submit */}
+            {/* Login */}
             <button
               type="submit"
               disabled={loading || !verified}
-              className="group flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-200 disabled:cursor-not-allowed disabled:opacity-50"
+              className="group flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -311,7 +416,10 @@ export default function Login() {
               ) : (
                 <>
                   Sign in to workspace
-                  <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+                  <ArrowRight
+                    size={18}
+                    className="transition-transform group-hover:translate-x-1"
+                  />
                 </>
               )}
             </button>
@@ -321,14 +429,17 @@ export default function Login() {
           <div className="mt-8 border-t border-slate-200 pt-6">
             <div className="flex items-start gap-3">
               <LockKeyhole size={18} className="mt-0.5 shrink-0 text-slate-400" />
+
               <div>
                 <p className="text-xs font-bold text-slate-700">
                   Authorized personnel only
                 </p>
+
                 <p className="mt-1 text-xs leading-5 text-slate-500">
                   Restricted to company administrators and employees.
                   Contact your system administrator for access.
                 </p>
+
                 <a
                   href="mailto:codepilot.devteam@gmail.com"
                   className="mt-2 inline-block text-xs font-semibold text-indigo-600 hover:underline"
@@ -340,12 +451,11 @@ export default function Login() {
           </div>
 
           <p className="mt-8 text-center text-[11px] text-slate-400">
-            © {new Date().getFullYear()} AI Demand & Inventory Intelligence Platform
+            © {new Date().getFullYear()} DemandIQ. All rights reserved.
           </p>
         </div>
       </section>
 
-      {/* Animations */}
       <style>{`
         .login-orb {
           position: absolute;
@@ -360,7 +470,7 @@ export default function Login() {
         .login-orb-one {
           top: 12%;
           left: -100px;
-          background: rgba(139, 92, 246, .38);
+          background: rgba(99, 102, 241, .38);
         }
 
         .login-orb-two {
@@ -379,7 +489,7 @@ export default function Login() {
         }
 
         .login-gradient-text {
-          background: linear-gradient(90deg, #a5f3fc, #c4b5fd, #ffffff);
+          background: linear-gradient(90deg, #67e8f9, #c4b5fd, #ffffff);
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
@@ -404,7 +514,7 @@ export default function Login() {
           align-items: center;
           gap: 12px;
           border: 1px solid #cbd5e1;
-          border-radius: 9px;
+          border-radius: 10px;
           background: white;
           padding: 0 13px;
           transition: border-color .2s, box-shadow .2s;
@@ -451,7 +561,10 @@ export default function Login() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .login-robot, .animate-float, .animate-login, .login-orb {
+          .login-robot,
+          .animate-float,
+          .animate-login,
+          .login-orb {
             animation: none !important;
           }
         }
@@ -459,4 +572,3 @@ export default function Login() {
     </main>
   );
 }
-
