@@ -119,31 +119,45 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+
 const startServer = async () => {
     try {
         await connectDatabase();
 
+        // 1. Independent tables
         await User.sync();
         console.log("User Table Synchronized");
-        await Product.sync();
-        console.log("Product Table Synchronized");
+
         await Category.sync();
         console.log("Category Table Synchronized");
-        await Inventory.sync();
-        console.log("Inventory Table Synchronized");
+
         await Supplier.sync();
         console.log("Supplier Table Synchronized");
+
+        // 2. Tables that depend on the above
+        await Product.sync();
+        console.log("Product Table Synchronized");
+
+        await Inventory.sync();
+        console.log("Inventory Table Synchronized");
+
+        // 3. Purchase order tables
         await PurchaseOrder.sync();
         console.log("Purchase Order Table Synchronized");
+
         await PurchaseOrderItem.sync();
         console.log("Purchase Order Item Table Synchronized");
+
+        // 4. Inventory transaction and demand tables
         await StockMovement.sync();
         console.log("Stock Movement Table Synchronized");
+
         await Demand.sync();
         console.log("Demand Table Synchronized");
+
+        // 5. Audit logs
         await AuditLog.sync();
         console.log("Audit Logs Table Synchronized");
-
 
         app.listen(PORT, () => {
             console.log(
@@ -152,13 +166,12 @@ const startServer = async () => {
         });
 
     } catch (error) {
-        console.error(
-            "Server Startup Failed:",
-            error.message
-        );
-
+        console.error("Server Startup Failed:", error);
         process.exit(1);
     }
 };
+
+startServer();
+
 
 startServer();

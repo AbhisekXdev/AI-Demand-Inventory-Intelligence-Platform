@@ -81,13 +81,6 @@ const AuditLog = sequelize.define(
     tableName: "audit_logs",
     timestamps: true,
     updatedAt: false,
-    indexes: [
-      { fields: ["userId"] },
-      { fields: ["module"] },
-      { fields: ["action"] },
-      { fields: ["status"] },
-      { fields: ["createdAt"] },
-    ],
   }
 );
 

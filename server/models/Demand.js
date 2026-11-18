@@ -1,3 +1,4 @@
+
 import { DataTypes } from "sequelize";
 import { sequelize } from "../config/database.js";
 
@@ -44,12 +45,6 @@ const Demand = sequelize.define(
     {
         tableName: "demands",
         timestamps: true,
-
-        indexes: [
-            {
-                fields: ["productId", "demandDate"],
-            },
-        ],
     }
 );
 
